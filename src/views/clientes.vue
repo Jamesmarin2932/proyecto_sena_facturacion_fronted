@@ -1,9 +1,9 @@
 <script>
 //logica js
-
 export default{
-    name:'ejemplo',
+    name:'clientes',
 }
+
 </script>
 
 
@@ -11,7 +11,8 @@ export default{
 
     <!--Visual para los formularios-->
 
-<h1> Modulo de inicio de sesion</h1>
+<h1>Modulo de clientes</h1>
+
 </template>
 
 <style>

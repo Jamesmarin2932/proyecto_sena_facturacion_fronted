@@ -1,9 +1,7 @@
 <script>
 //logica js
 
-export default{
-    name:'ejemplo',
-}
+
 </script>
 
 
@@ -11,7 +9,8 @@ export default{
 
     <!--Visual para los formularios-->
 
-<h1> Modulo de inicio de sesion</h1>
+<h1>Modulo de inicio de sesion</h1>
+
 </template>
 
 <style>
