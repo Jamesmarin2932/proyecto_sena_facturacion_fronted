@@ -17,7 +17,8 @@ import SideBarMain from './SideBarMain.vue'
         <SideBarMain/>
     </el-aside>
     <el-main>
-        
+        <slot name="slotlayout"></slot>
+        <slot name="slotlayout2"></slot>
     </el-main>
 </el-container>
 

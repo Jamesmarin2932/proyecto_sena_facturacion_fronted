@@ -1,6 +1,8 @@
 <template>
     <el-menu
       :default-active="activeIndex"
+      background-color="#325082"
+      text-color="#fefefe"
       class="el-menu-demo"
       mode="horizontal"
       :ellipsis="false"
@@ -14,7 +16,7 @@
         />
       </el-menu-item>
   
-      <!-- Espacio flexible para empujar los elementos a la derecha -->
+   
       <div class="flex-spacer"></div>
   
       <el-sub-menu index="1">
@@ -29,12 +31,12 @@
   export default {
     data() {
       return {
-        activeIndex: '0', // Asegúrate de ajustar esto según sea necesario
+        activeIndex: '0', 
       };
     },
     methods: {
       handleSelect(index) {
-        // Manejo de la selección
+       
         console.log(index);
       },
     },
@@ -43,15 +45,15 @@
   
   <style scoped>
   .el-menu-demo {
-    display: flex; /* Activar Flexbox */
-    justify-content: space-between; /* Espacio entre elementos */
-    align-items: center; /* Centrar verticalmente */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     width: 100%;
     z-index: 10;
   }
   
   .flex-spacer {
-    flex-grow: 1; /* Esta clase hace que el espacio flexible ocupe todo el espacio disponible */
+    flex-grow: 1; 
   }
   </style>
   
