@@ -4,10 +4,11 @@
       <header-button 
         :titulo="'DATOS DE CLIENTES'"
         :tituloboton="'Crear cliente'"
+        :abrir="abrirFormulario"
       />
 
       
-      <formulario :titulo="'Titulo del formulario'">
+      <formulario :titulo="'Titulo del formulario'" v-model:is-open="mostrarFormulario">
        
         <template #slotform>
           <form-clientes />
@@ -15,7 +16,7 @@
       </formulario>
 
       <!-- Tabla de datos de clientes -->
-      <div>
+      <div v-if="!mostrarFormulario">
         <el-table :data="tableData" stripe style="width: 100%">
           <el-table-column prop="Tipo_de_identificacion" label="Tipo de identificación" width="180" />
           <el-table-column prop="Numero" label="Número" width="180" />
@@ -40,7 +41,7 @@
 
 
 <script lang="ts" setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import LayoutMain from '../../components/LayoutMain.vue';
 import formClientes from './Componentes/formClientes.vue';
 import headerButton from '../../components/headerButton.vue';
@@ -62,6 +63,13 @@ const form = reactive({
 
 const onSubmit = () => {
   console.log('submit!')
+}
+
+const mostrarFormulario =ref( false);
+
+const abrirFormulario =()=>{
+  mostrarFormulario.value=true;
+  
 }
 
 const tableData = [

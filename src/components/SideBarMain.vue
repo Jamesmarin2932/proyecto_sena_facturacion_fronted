@@ -1,16 +1,17 @@
 <template>
   <div class="menu-container">
     <el-menu
-      default-active="2"
+
+      :default-active="$route.path"
+      router
       class="el-menu-vertical-demo"
       background-color="#515459"
       text-color="#fefefe"
-      @open="handleOpen"
-      @close="handleClose"
+    
     >
     <el-sub-menu index="1">
           <template #title>CLIENTES</template>
-          <el-menu-item index="1-1">Clientes</el-menu-item>
+          <el-menu-item index="Clientes">Clientes</el-menu-item>
           <el-menu-item index="1-2">Informes</el-menu-item>
           
         </el-sub-menu>
@@ -39,12 +40,14 @@
 .menu-container {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* Ocupa el 100% de la altura de la ventana */
+  height: 100vh; 
 }
 
 .el-menu-vertical-demo {
-  flex-grow: 1; /* Asegura que el menú ocupe todo el espacio disponible */
-  border-right: none; /* Opcional, para eliminar la línea de borde derecha */
+  width: 250px;
+  min-height: 100%;
+  flex-grow: 1; 
+  border-right: none; 
 }
 </style>
 

@@ -13,7 +13,7 @@ import SideBarMain from './SideBarMain.vue'
 </el-container>
 <el-container>
 
-    <el-aside>
+    <el-aside width="250px">
         <SideBarMain/>
     </el-aside>
     <el-main>
