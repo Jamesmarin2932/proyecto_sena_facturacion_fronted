@@ -11,7 +11,7 @@
     >
     <el-sub-menu index="1">
           <template #title>CLIENTES</template>
-          <el-menu-item index="Clientes">Clientes</el-menu-item>
+          <el-menu-item index="Clientes">Datos de clientes</el-menu-item>
           <el-menu-item index="1-2">Informes</el-menu-item>
           
         </el-sub-menu>
@@ -19,7 +19,7 @@
         
         <el-sub-menu index="2">
           <template #title>PRODUCTOS</template>
-          <el-menu-item index="2-1">Crear producto</el-menu-item>
+          <el-menu-item index="productos">Datos de productos</el-menu-item>
           <el-menu-item index="2-2">Consultar productos</el-menu-item>
           <el-menu-item index="2-3">Consultar stock</el-menu-item>
         </el-sub-menu>

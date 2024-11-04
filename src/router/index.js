@@ -2,7 +2,7 @@ import {createRouter, createWebHashHistory, createWebHistory} from 'vue-router'
 import Inicio from '../components/Inicio.vue'
 import Clientes from '../views/clientes/clientes.vue'
 import  LayoutMain from '../components/LayoutMain.vue'
-import  productos from '../views/productos.vue'
+import  productos from '../views/productos/productos.vue'
 
 
 const routes =[

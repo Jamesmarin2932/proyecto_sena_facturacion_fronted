@@ -2,16 +2,16 @@
   <layout-main>
     <template #slotlayout>
       <header-button v-if="!mostrarFormulario"
-        :titulo="'DATOS DE CLIENTES' "
-        :tituloboton="'Crear cliente'"
+        :titulo="'DATOS PRODUCTOS' "
+        :tituloboton="'Crear producto'"
         :abrir="abrirFormulario"
       />
 
       
-      <formulario :titulo="'Gestión de clientes'" v-model:is-open="mostrarFormulario" :is-edit="editandoFormulario">
+      <formulario :titulo="'Gestión de productos'" v-model:is-open="mostrarFormulario" :is-edit="editandoFormulario">
        
         <template #slotform>
-          <formClientes />
+          <formproductos />
         </template>
       </formulario>
 
@@ -44,7 +44,7 @@
 <script lang="ts" setup>
 import { reactive, ref } from 'vue'
 import LayoutMain from '../../components/LayoutMain.vue';
-import formClientes from '../clientes/Componentes/formClientes.vue';
+import formproductos from '../productos/componentes/formproductos.vue';
 import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
 import {Delete,EditPen} from "@element-plus/icons-vue";
@@ -86,7 +86,7 @@ const editarFormulario= async()=>{
 
 const tableData = [
   {
-    Tipo_de_identificacion: 'cc',
+    Tipo_de_identificacion: 'akinaja',
     Numero: '100225588',
     Nombres: 'Alberto salas',
     Apellidos: 'Garcia',

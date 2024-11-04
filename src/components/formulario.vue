@@ -1,14 +1,17 @@
 <template>
 
-<div class="container-header" v-show="isVisible">
-        <h1 class="titulo">{{ titulo }}</h1>
+<div class="container-header" v-if="isVisible">
+        <h1 class="titulo" >{{ titulo }}</h1>
 
-        <el-row justify="center"align="middle">
-        <el-button type="primary">Guardar</el-button>
+        <el-row justify="center"align-items="middle">
+            <el-button type="primary">{{ tituloBoton }}</el-button>
+
         <el-button type="danger" @click="irAtras" >Cancelar</el-button>
         </el-row>
 
         <slot name="slotform"></slot>
+
+        
     </div>
 
 </template>
@@ -19,10 +22,12 @@ import { computed, ref } from 'vue';
 
 const propiedad =defineProps({
     titulo: String,
-
+    isEdit: Boolean,
     isOpen:Boolean
     
 })
+
+const tituloBoton=computed(()=>(propiedad.isEdit ? 'Actualizar':'Guardar'))
 
 const isVisible = computed(()=>  propiedad.isOpen);
 const $emit = defineEmits(['update:is-open']);
@@ -54,5 +59,7 @@ const irAtras =()=>{
     align-items: center;
     padding: 10px;
 }
+
+
 
 </style>
