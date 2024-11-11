@@ -19,14 +19,12 @@
       <div v-if="!mostrarFormulario" :is-edit="editandoFormulario">
         
         <el-table :data="tableData" stripe style="width: 100%">
-          <el-table-column prop="Tipo_de_identificacion" label="Tipo de identificación" width="180" />
-          <el-table-column prop="Numero" label="Número" width="180" />
-          <el-table-column prop="Nombres" label="Nombres" width="180" />
-          <el-table-column prop="Apellidos" label="Apellidos" width="180" />
-          <el-table-column prop="Dirección" label="Dirección" width="180" />
-          <el-table-column prop="Ciudad" label="Ciudad" width="180" />
-          <el-table-column prop="Telefono" label="Teléfono" width="180" />
-          <el-table-column prop="Correo" label="Correo" />
+          <el-table-column prop="Codigo" label="Codigo" width="180" />
+          <el-table-column prop="Nombre" label="Nombre" width="180" />
+          <el-table-column prop="Descripcion" label="Descripcion" width="180" />
+          <el-table-column prop="Precio" label="Precio" width="180" />
+          <el-table-column prop="Stock" label="Stock" width="180" />
+          
           <el-table-column fixed="right" label="Opciones" min-width="120">
             <template #default>
               <el-button link type="primary" :icon="EditPen" @click="editarFormulario" ></el-button>
@@ -44,10 +42,11 @@
 <script lang="ts" setup>
 import { reactive, ref } from 'vue'
 import LayoutMain from '../../components/LayoutMain.vue';
-import formproductos from '../productos/componentes/formproductos.vue';
+import formproductos from './componentes/formproductos.vue';
 import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
 import {Delete,EditPen} from "@element-plus/icons-vue";
+import Formproductos from './componentes/formproductos.vue';
 
 
 // do not use same name with ref
@@ -86,14 +85,12 @@ const editarFormulario= async()=>{
 
 const tableData = [
   {
-    Tipo_de_identificacion: 'akinaja',
-    Numero: '100225588',
-    Nombres: 'Alberto salas',
-    Apellidos: 'Garcia',
-    Dirección: 'carrra 12',
-    Ciudad: 'Bogota',
-    Telefono: '854412',
-    Correo: 'Albert@gmh45',
+    Codigo: '001',
+    Nombre: 'Manzana',
+    Descripcion: 'Manzana gala',
+    Precio: '2000',
+    Stock: '100',
+   
   },]
 
 </script>

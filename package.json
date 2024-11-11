@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "serve": "vue-cli-service serve",
     "preview": "vite preview"
   },
   "dependencies": {
     "@vue/cli-service": "^5.0.8",
+    "axios": "^1.7.7",
     "element-plus": "^2.8.5",
     "vue": "^3.4.37",
     "vue-router": "^4.4.5"
