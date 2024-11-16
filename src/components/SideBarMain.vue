@@ -5,8 +5,8 @@
       :default-active="$route.path"
       router
       class="el-menu-vertical-demo"
-      background-color="#515459"
-      text-color="#fefefe"
+      background-color="#828181"
+      text-color="#fdfbfb"
     
     >
     <el-sub-menu index="1">

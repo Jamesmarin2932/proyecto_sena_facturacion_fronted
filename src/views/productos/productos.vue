@@ -15,16 +15,16 @@
         </template>
       </formulario>
 
-      <!-- Tabla de datos de clientes -->
+      <!-- Tabla de datos de productos -->
       <div v-if="!mostrarFormulario" :is-edit="editandoFormulario">
         
         <el-table :data="tableData" stripe style="width: 100%">
-          <el-table-column prop="Codigo" label="Codigo" width="180" />
+          <el-table-column prop="Codigo" label="Código" width="180" />
           <el-table-column prop="Nombre" label="Nombre" width="180" />
-          <el-table-column prop="Descripcion" label="Descripcion" width="180" />
-          <el-table-column prop="Precio" label="Precio" width="180" />
+         <el-table-column prop="Descripcion" label="Descripción" width="180" />
+         <el-table-column prop="Precio" label="Precio" width="180" />
           <el-table-column prop="Stock" label="Stock" width="180" />
-          
+
           <el-table-column fixed="right" label="Opciones" min-width="120">
             <template #default>
               <el-button link type="primary" :icon="EditPen" @click="editarFormulario" ></el-button>
@@ -39,59 +39,37 @@
 
 
 
-<script lang="ts" setup>
-import { reactive, ref } from 'vue'
+<script setup>
+import { ref, onMounted } from 'vue';
+import { EditPen, Delete } from '@element-plus/icons-vue';
+import axios from 'axios';
 import LayoutMain from '../../components/LayoutMain.vue';
-import formproductos from './componentes/formproductos.vue';
 import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
-import {Delete,EditPen} from "@element-plus/icons-vue";
-import Formproductos from './componentes/formproductos.vue';
+import formproductos from '../productos/componentes/formproductos.vue';
 
+const mostrarFormulario = ref(false);
+const editandoFormulario = ref(false);
+const tableData = ref([]);
 
-// do not use same name with ref
-const form = reactive({
-  name: '',
-  region: '',
-  date1: '',
-  date2: '',
-  delivery: false,
-  type: [],
-  resource: '',
-  desc: '',
-})
+const abrirFormulario = () => {
+  mostrarFormulario.value = true;
+  editandoFormulario.value = false;
+};
 
-const onSubmit = () => {
-  console.log('submit!')
-}
+const getProductos = async () => {
+  try {
+    const response = await axios.get('http://127.0.0.1:8000/api/nombre_productos/getdata');
+    tableData.value = response.data.data;
+  } catch (error) {
+    console.error('Error al obtener productos:', error);
+  }
+};
 
-const mostrarFormulario =ref( false);
-const editandoFormulario=ref(false);
+onMounted(() => {
+  getProductos();
+});
 
-
-
-
-const abrirFormulario =()=>{
-  mostrarFormulario.value=true;
-  editandoFormulario.value=false
-  
-}
-
-const editarFormulario= async()=>{
-
-  mostrarFormulario.value=true;
-  editandoFormulario.value=true
-}
-
-const tableData = [
-  {
-    Codigo: '001',
-    Nombre: 'Manzana',
-    Descripcion: 'Manzana gala',
-    Precio: '2000',
-    Stock: '100',
-   
-  },]
 
 </script>
 

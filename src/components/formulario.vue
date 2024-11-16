@@ -26,7 +26,7 @@
     $emit('update:is-open', false);
   };
   
-  // Emitir evento de guardado
+ 
   const guardarFormulario = () => {
     $emit('guardar');
   };

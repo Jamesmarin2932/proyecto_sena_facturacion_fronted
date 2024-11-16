@@ -28,14 +28,20 @@
     <el-form-item label="Stock" prop="stock">
       <el-input v-model="formulario2.stock" />
     </el-form-item>
+
+    <el-form-item>
+      <el-button type="primary" @click="guardarProducto">Guardar</el-button>
+    </el-form-item>
   </el-form>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue';
+import { ref, reactive } from 'vue';
+import axios from 'axios';
+import { ElMessage } from 'element-plus';
 
 const formSize = ref('default');
-const formulario2Ref = ref();
+const ruleFormRef = ref(null);
 const formulario2 = reactive({
   codigo: '',
   nombre: '',
@@ -45,38 +51,35 @@ const formulario2 = reactive({
 });
 
 const rules = reactive({
-  codigo: [
-    { required: true, message: 'Por favor ingrese un codigo', trigger: 'blur' },
-    { min: 3, max: 5, message: 'Length should be 3 to 5', trigger: 'blur' }
-  ],
-
-  nombre: [
-    { required: true, message: 'Por favor ingrese un nombre', trigger: 'blur' },
-    { min: 3, max: 30, message: 'Length should be 3 to 5', trigger: 'blur' }
-  ],
-
-  descripcion: [
-    { required: true, message: 'Por favor ingrese una descripcion', trigger: 'blur' },
-    { min: 3, max: 50, message: 'Length should be 3 to 5', trigger: 'blur' }
-  ],
-
-  precio: [
-    { required: true, message: 'Por favor ingrese un valor', trigger: 'blur' },
-    { min: 3, max: 20, message: 'Length should be 3 to 5', trigger: 'blur' }
-  ],
-
-  stock: [
-    { required: true, message: 'Por favor ingrese un valor', trigger: 'blur' },
-    { min: 1, max: 1000, message: 'La cantidad no puede ser menor a 1', trigger: 'blur' }
-  ]
-
-
+  codigo: [{ required: true, message: 'Por favor ingrese un código', trigger: 'blur' }],
+  nombre: [{ required: true, message: 'Por favor ingrese un nombre', trigger: 'blur' }],
+  descripcion: [{ required: true, message: 'Por favor ingrese una descripción', trigger: 'blur' }],
+  precio: [{ required: true, message: 'Por favor ingrese un precio', trigger: 'blur' }],
+  stock: [{ required: true, message: 'Por favor ingrese el stock', trigger: 'blur' }]
 });
 
+const guardarProducto = async () => {
+  try {
+    await ruleFormRef.value.validate();
+    await crearProducto();
+    ruleFormRef.value.resetFields();
+    ElMessage.success('Producto creado con éxito');
+  } catch (error) {
+    ElMessage.error('Error al guardar los datos');
+  }
+};
 
+const crearProducto = async () => {
+  const url = 'http://127.0.0.1:8000/api/nombre_productos/save';
+  const dataFormulario = { ...formulario2 };
 
-
-
+  try {
+    await axios.post(url, dataFormulario);
+  } catch (error) {
+    console.error('Error al enviar datos al backend:', error);
+    throw error;
+  }
+};
 </script>
 
 <style scoped>

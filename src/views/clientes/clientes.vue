@@ -47,6 +47,7 @@ import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
 import formClientes from '../clientes/Componentes/formClientes.vue';
 
+
 const mostrarFormulario = ref(false);
 const editandoFormulario = ref(false);
 

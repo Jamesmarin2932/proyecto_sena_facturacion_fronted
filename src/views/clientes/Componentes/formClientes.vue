@@ -48,6 +48,8 @@
       <el-button type="primary" @click="guardarCliente">Guardar</el-button>
     </el-form-item>
   </el-form>
+
+
 </template>
 
 <script setup>
@@ -57,8 +59,8 @@ import { ElMessage } from 'element-plus';
 
 const formSize = ref('default');
 const ruleFormRef = ref(null);
-
 const ruleForm = reactive({
+
   Tipodeidentificacion: '',
   Numero: '',
   Nombres: '',
