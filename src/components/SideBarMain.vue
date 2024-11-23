@@ -26,7 +26,7 @@
 
         <el-sub-menu index="3">
           <template #title>FACTURAS</template>
-          <el-menu-item index="3-1">Crear factura</el-menu-item>
+          <el-menu-item index="facturas">Crear factura</el-menu-item>
           <el-menu-item index="3-2">Consultar factura</el-menu-item>
           <el-menu-item index="3-3">Informe movimientos</el-menu-item>
         </el-sub-menu>
