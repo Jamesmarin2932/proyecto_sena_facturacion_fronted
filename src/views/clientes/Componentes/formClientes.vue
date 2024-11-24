@@ -48,19 +48,22 @@
       <el-button type="primary" @click="guardarCliente">Guardar</el-button>
     </el-form-item>
   </el-form>
-
-
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, watch } from 'vue';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 
 const formSize = ref('default');
 const ruleFormRef = ref(null);
-const ruleForm = reactive({
 
+
+const props = defineProps({
+  cliente: Object,
+});
+
+const ruleForm = reactive({
   Tipodeidentificacion: '',
   Numero: '',
   Nombres: '',
@@ -70,6 +73,7 @@ const ruleForm = reactive({
   Telefono: '',
   Correo: ''
 });
+
 
 const rules = reactive({
   Tipodeidentificacion: [
@@ -99,23 +103,38 @@ const rules = reactive({
   ],
 });
 
+watch(() => props.cliente, (newCliente) => {
+  if (newCliente) {
+    ruleForm.Tipodeidentificacion = newCliente.tipo_identificacion || '';
+    ruleForm.Numero = newCliente.numero_identificacion || '';
+    ruleForm.Nombres = newCliente.nombres || '';
+    ruleForm.Apellidos = newCliente.apellidos || '';
+    ruleForm.Direccion = newCliente.direccion || '';
+    ruleForm.Ciudad = newCliente.ciudad || '';
+    ruleForm.Telefono = newCliente.telefono || '';
+    ruleForm.Correo = newCliente.correo || '';
+  }
+}, { immediate: true });
+
 const guardarCliente = async () => {
   ruleFormRef.value.validate(async (valid) => {
     if (valid) {
-      await crearCliente();
-      
-     
+      if (props.cliente && props.cliente.id) {
+        
+        await actualizarCliente();
+      } else {
+        
+        await crearCliente();
+      }
       Object.keys(ruleForm).forEach(key => {
         ruleForm[key] = '';
       });
-
       ruleFormRef.value.resetFields();
     } else {
       ElMessage.error('Error al validar el formulario');
     }
   });
 };
-
 
 const crearCliente = async () => {
   const url = 'http://127.0.0.1:8000/api/dato_clientes/save';
@@ -138,6 +157,28 @@ const crearCliente = async () => {
     ElMessage.error('Error al guardar los datos');
   }
 };
+
+const actualizarCliente = async () => {
+  const url = `http://127.0.0.1:8000/api/dato_clientes/update/${props.cliente.id}`;
+  
+  const dataFormulario = {
+    tipo_identificacion: ruleForm.Tipodeidentificacion,
+    numero_identificacion: ruleForm.Numero,
+    nombres: ruleForm.Nombres,
+    apellidos: ruleForm.Apellidos,
+    direccion: ruleForm.Direccion,
+    ciudad: ruleForm.Ciudad,
+    telefono: ruleForm.Telefono,
+    correo: ruleForm.Correo,
+  };
+
+  try {
+    const response = await axios.put(url, dataFormulario);
+    ElMessage.success('Cliente actualizado con éxito');
+  } catch (error) {
+    ElMessage.error('Error al actualizar los datos');
+  }
+};
 </script>
 
 <style scoped>
@@ -145,4 +186,3 @@ const crearCliente = async () => {
   margin-top: 30px;
 }
 </style>
-
