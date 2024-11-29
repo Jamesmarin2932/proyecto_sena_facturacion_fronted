@@ -3,7 +3,7 @@ import Inicio from '../components/Inicio.vue'
 import Clientes from '../views/clientes/clientes.vue'
 import  LayoutMain from '../components/LayoutMain.vue'
 import  productos from '../views/productos/productos.vue'
-import facturas from '../views/facturas/facturas.vue'
+import Facturas from '../views/facturas/facturas.vue'
 
 
 
@@ -39,7 +39,7 @@ const routes =[
 {
     path:'/facturas',
     name: 'facturas',
-    component:facturas,
+    component:Facturas,
 }
 
 ]
