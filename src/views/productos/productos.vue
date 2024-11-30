@@ -46,7 +46,7 @@ import axios from 'axios';
 import LayoutMain from '../../components/LayoutMain.vue';
 import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
-import formproductos from '@views/productos/componentes/formproductos.vue';
+import formproductos from './componentes/formproductos.vue';
 
 
 
