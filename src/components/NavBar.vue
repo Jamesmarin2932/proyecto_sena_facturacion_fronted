@@ -1,7 +1,7 @@
 <template>
     <el-menu
       :default-active="activeIndex"
-      background-color="#bb15bd"
+      background-color="#373d5b"
       text-color="#fefefe"
       class="el-menu-demo"
       mode="horizontal"

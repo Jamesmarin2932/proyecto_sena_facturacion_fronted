@@ -28,6 +28,7 @@ import SideBarMain from './SideBarMain.vue'
 <style scoped>
 /* Estilos CSS */
 
+
 .el-container{
     flex:1;
     display: flex;
