@@ -3,7 +3,7 @@ import Inicio from '../components/Inicio.vue'
 import Clientes from '../views/clientes/clientes.vue'
 import  LayoutMain from '../components/LayoutMain.vue'
 import  productos from '../views/productos/productos.vue'
-import Facturas from '../../src/views/facturas/facturas.vue'
+import Facturas from '../views/facturas/facturas.vue'
 
 
 
