@@ -142,6 +142,8 @@ const actualizarCliente = async (clienteActualizado) => {
         type: 'success',
         message: 'Cliente actualizado con éxito',
       });
+
+      
       getClientes();
       mostrarFormulario.value = false; 
     }

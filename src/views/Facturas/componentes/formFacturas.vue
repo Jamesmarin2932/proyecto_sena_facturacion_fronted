@@ -67,15 +67,13 @@
     <el-form-item>
       <el-button type="primary" @click="guardarFactura">Guardar</el-button>
     </el-form-item>
-
   </el-form>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, watch } from 'vue';
 import axios from 'axios';
-import { ElMessage, ElForm, ElInput, ElButton } from 'element-plus';
-import 'element-plus/dist/index.css'; 
+import { ElMessage } from 'element-plus';
 
 const formSize = ref('default');
 const ruleFormRef = ref(null);
@@ -84,7 +82,7 @@ const ruleForm = reactive({
   tipo_identificacion: '',
   numero_identificacion: '',
   cliente: '',
-  fecha: new Date().toISOString().split('T')[0],  
+  fecha: '',
   codigo_del_producto: '',
   producto: '',
   cantidad: 0,
@@ -93,44 +91,44 @@ const ruleForm = reactive({
   descuento: 0,
   iva: 0,
   total: 0,
+  numero_factura: '',
 });
 
-// Reglas de validación (si las necesitas)
-const rules = reactive({
-  // Puedes agregar reglas de validación aquí si es necesario
-});
+const rules = {
+  tipo_identificacion: [{ required: true, message: 'Por favor, seleccione un tipo de identificación', trigger: 'blur' }],
+  numero_identificacion: [{ required: true, message: 'Por favor, ingrese el número de identificación', trigger: 'blur' }],
+  cliente: [{ required: true, message: 'Por favor, ingrese el nombre del cliente', trigger: 'blur' }],
+  producto: [{ required: true, message: 'Por favor, ingrese el producto', trigger: 'blur' }],
+  cantidad: [{ required: true, type: 'number', message: 'Por favor, ingrese una cantidad', trigger: 'blur' }],
+  precio_unitario: [{ required: true, type: 'number', message: 'Por favor, ingrese el precio unitario', trigger: 'blur' }],
+};
 
-
+// Función para calcular subtotal, iva y total
 const calcularSubtotal = () => {
   return ruleForm.cantidad * ruleForm.precio_unitario;
 };
 
-const calcularIvaYTotal = () => {
-  const subtotal = calcularSubtotal();
-  const subtotalConDescuento = subtotal - ruleForm.descuento;
-  const iva = subtotalConDescuento * 0.19;
-  ruleForm.sub_total = subtotalConDescuento;
-  ruleForm.iva = iva;
-  const total = subtotalConDescuento + iva;
-  ruleForm.total = total;
-};
-
 const calcularIva = () => {
-  const subtotalConDescuento = calcularSubtotal() - ruleForm.descuento;
-  return subtotalConDescuento * 0.19;
+  return (calcularSubtotal() - ruleForm.descuento) * 0.19;
 };
 
 const calcularTotal = () => {
-  const subtotalConDescuento = calcularSubtotal() - ruleForm.descuento;
-  return subtotalConDescuento + calcularIva();
+  return calcularSubtotal() - ruleForm.descuento + calcularIva();
 };
 
+// Función para guardar factura (Crear o actualizar)
 const guardarFactura = async () => {
   ruleFormRef.value.validate(async (valid) => {
     if (valid) {
-      await crearFactura();
-    
-      Object.keys(ruleForm).forEach(key => {
+      if (ruleForm.numero_factura) {
+        // Si ya existe número de factura, se hace actualización
+        await actualizarFactura(ruleForm);
+      } else {
+        // Si no existe número de factura, se crea una nueva
+        await crearFactura(ruleForm);
+      }
+      // Limpiar el formulario después de guardar
+      Object.keys(ruleForm).forEach((key) => {
         ruleForm[key] = '';
       });
       ruleFormRef.value.resetFields();
@@ -140,45 +138,46 @@ const guardarFactura = async () => {
   });
 };
 
-// Función para crear la factura en el backend
-const crearFactura = async () => {
-  const url = 'http://127.0.0.1:8000/api/descripcion_facturas/save';
-  
-  // Convertir la fecha a formato 'yyyy-MM-dd' (asegúrate de que la fecha esté como string)
-  const fechaFormateada = ruleForm.fecha ? ruleForm.fecha : '';
-
-  const dataFormulario = {
-    tipo_identificacion: ruleForm.tipo_identificacion,
-    numero_identificacion: ruleForm.numero_identificacion,
-    cliente: ruleForm.cliente,
-    fecha: fechaFormateada,  // Enviar la fecha formateada como string
-    codigo_del_producto: ruleForm.codigo_del_producto,
-    producto: ruleForm.producto,
-    cantidad: ruleForm.cantidad,
-    precio_unitario: ruleForm.precio_unitario,
-    sub_total: ruleForm.sub_total,
-    descuento: ruleForm.descuento,
-    iva: ruleForm.iva,
-    total: ruleForm.total,
-  };
-
+// Crear una nueva factura
+const crearFactura = async (facturaNueva) => {
   try {
-    const response = await axios.post(url, dataFormulario);
-    if (response.data.data) {
-      ElMessage.success('Factura creada con éxito');
-      ruleForm.numero_factura = response.data.data.numero_factura; // Mostrar el número de factura generado
+    const url = 'http://127.0.0.1:8000/api/descripcion_facturas/save/';
+    const response = await axios.post(url, facturaNueva);
+    if (response.status === 200) {
+      ElMessage({
+        type: 'success',
+        message: 'Factura creada con éxito',
+      });
     }
   } catch (error) {
-    ElMessage.error('Error al guardar los datos');
+    console.error('Error al crear la factura:', error);
+    ElMessage({
+      type: 'error',
+      message: 'Hubo un error al crear la factura',
+    });
+  }
+};
+
+// Actualizar factura existente
+const actualizarFactura = async (facturaActualizada) => {
+  try {
+    const url = `http://127.0.0.1:8000/api/descripcion_facturas/update/${facturaActualizada.numero_factura}`;
+    const response = await axios.put(url, facturaActualizada);
+    if (response.status === 200) {
+      ElMessage({
+        type: 'success',
+        message: 'Factura actualizada con éxito',
+      });
+    }
+  } catch (error) {
+    console.error('Error al actualizar la factura:', error);
+    ElMessage({
+      type: 'error',
+      message: 'Hubo un error al actualizar la factura',
+    });
   }
 };
 </script>
 
 <style scoped>
-.form-spacing {
-  margin-top: 30px;
-}
 </style>
-
-
-
