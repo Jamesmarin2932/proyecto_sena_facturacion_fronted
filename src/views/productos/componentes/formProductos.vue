@@ -1,89 +1,142 @@
 <template>
-  <el-form 
-    ref="ruleFormRef"
-    style="max-width: 100%"
-    :model="formulario2"
-    :rules="rules"
-    label-width="auto"
-    class="demo-formulario2 form-spacing"
-    :size="formSize"
-    status-icon
-  >
-    <el-form-item label="Codigo" prop="codigo">
-      <el-input v-model="formulario2.codigo" />
-    </el-form-item>
+  <div class="form-card">
+    <el-form
+      ref="ruleFormRef"
+      :model="ruleForm"
+      :rules="rules"
+      label-width="auto"
+      class="demo-ruleForm"
+      :size="formSize"
+      status-icon
+    >
+      <el-row :gutter="20">
+        <el-col :xs="24" :md="12">
+          <el-form-item label="Código" prop="codigo">
+            <el-input v-model="ruleForm.codigo" placeholder="Ingrese el código" clearable />
+          </el-form-item>
+        </el-col>
 
-    <el-form-item label="Nombre" prop="nombre">
-      <el-input v-model="formulario2.nombre" />
-    </el-form-item>
+        <el-col :xs="24" :md="12">
+          <el-form-item label="Nombre" prop="nombre">
+            <el-input v-model="ruleForm.nombre" placeholder="Ingrese el nombre del producto" clearable />
+          </el-form-item>
+        </el-col>
 
-    <el-form-item label="Descripcion" prop="descripcion">
-      <el-input v-model="formulario2.descripcion" />
-    </el-form-item>
+        <el-col :xs="24" :md="12">
+          <el-form-item label="Precio" prop="precio">
+            <el-input v-model.number="ruleForm.precio" placeholder="Ingrese el precio" clearable type="number" />
+          </el-form-item>
+        </el-col>
 
-    <el-form-item label="Precio" prop="precio">
-      <el-input v-model="formulario2.precio" />
-    </el-form-item>
+        <el-col :xs="24" :md="12">
+          <el-form-item label="Cantidad" prop="cantidad">
+            <el-input v-model.number="ruleForm.cantidad" placeholder="Ingrese la cantidad" clearable type="number" />
+          </el-form-item>
+        </el-col>
 
-    <el-form-item label="Stock" prop="stock">
-      <el-input v-model="formulario2.stock" />
-    </el-form-item>
-
-    <el-form-item>
-      <el-button type="primary" @click="guardarProducto">Guardar</el-button>
-    </el-form-item>
-  </el-form>
+        <el-col :span="24" class="form-actions">
+          <el-button type="danger" @click="cancelarFormulario">Cancelar</el-button>
+          <el-button type="primary" @click="guardarProducto">Guardar</el-button>
+        </el-col>
+      </el-row>
+    </el-form>
+  </div>
 </template>
 
-<script setup>
-import { ref, reactive } from 'vue';
-import axios from 'axios';
+<script>
+import { ref, reactive, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 
-const formSize = ref('default');
-const ruleFormRef = ref(null);
-const formulario2 = reactive({
-  codigo: '',
-  nombre: '',
-  descripcion: '',
-  precio: '',
-  stock: ''
-});
+export default {
+  name: 'FormProductos',
+  props: {
+    producto: {
+      type: Object,
+      default: () => ({})
+    }
+  },
+  setup(props, { emit }) {
+    const formSize = ref('default');
+    const ruleFormRef = ref(null);
+    const ruleForm = reactive({
+      codigo: '',
+      nombre: '',
+      precio: null,
+      cantidad: null
+    });
 
-const rules = reactive({
-  codigo: [{ required: true, message: 'Por favor ingrese un código', trigger: 'blur' }],
-  nombre: [{ required: true, message: 'Por favor ingrese un nombre', trigger: 'blur' }],
-  descripcion: [{ required: true, message: 'Por favor ingrese una descripción', trigger: 'blur' }],
-  precio: [{ required: true, message: 'Por favor ingrese un precio', trigger: 'blur' }],
-  stock: [{ required: true, message: 'Por favor ingrese el stock', trigger: 'blur' }]
-});
+    const rules = reactive({
+      codigo: [{ required: true, message: 'El código es obligatorio', trigger: 'blur' }],
+      nombre: [{ required: true, message: 'El nombre es obligatorio', trigger: 'blur' }],
+      precio: [{ required: true, message: 'El precio es obligatorio', trigger: 'blur' }],
+      cantidad: [{ required: true, message: 'La cantidad es obligatoria', trigger: 'blur' }]
+    });
 
-const guardarProducto = async () => {
-  try {
-    await ruleFormRef.value.validate();
-    await crearProducto();
-    ruleFormRef.value.resetFields();
-    ElMessage.success('Producto creado con éxito');
-  } catch (error) {
-    ElMessage.error('Error al guardar los datos');
-  }
-};
+    watch(() => props.producto, (newProducto) => {
+      if (newProducto && Object.keys(newProducto).length) {
+        ruleForm.codigo = newProducto.codigo || '';
+        ruleForm.nombre = newProducto.nombre || '';
+        ruleForm.precio = newProducto.precio || null;
+        ruleForm.cantidad = newProducto.cantidad || null;
+      } else {
+        ruleForm.codigo = '';
+        ruleForm.nombre = '';
+        ruleForm.precio = null;
+        ruleForm.cantidad = null;
+      }
+    }, { immediate: true });
 
-const crearProducto = async () => {
-  const url = 'http://127.0.0.1:8000/api/nombre_productos/save';
-  const dataFormulario = { ...formulario2 };
+    const guardarProducto = () => {
+      ruleFormRef.value.validate((valid) => {
+        if (valid) {
+          const datosProducto = {
+            id: props.producto?.id || null,
+            codigo: ruleForm.codigo,
+            nombre: ruleForm.nombre,
+            precio: ruleForm.precio,
+            cantidad: ruleForm.cantidad
+          };
+          emit('guardar', datosProducto);
+          ruleFormRef.value.resetFields();
+        } else {
+          ElMessage.error('Por favor complete todos los campos correctamente.');
+          return false;
+        }
+      });
+    };
 
-  try {
-    await axios.post(url, dataFormulario);
-  } catch (error) {
-    console.error('Error al enviar datos al backend:', error);
-    throw error;
+    const cancelarFormulario = () => {
+      ruleFormRef.value.resetFields();
+      emit('cerrarFormulario');
+    };
+
+    return {
+      formSize,
+      ruleFormRef,
+      ruleForm,
+      rules,
+      guardarProducto,
+      cancelarFormulario
+    };
   }
 };
 </script>
 
 <style scoped>
-.form-spacing {
-  margin-top: 30px;
+.form-card {
+  max-width: 960px;
+  margin: 30px auto;
+  padding: 30px;
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  font-family: 'Roboto', sans-serif;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
 }
 </style>
+

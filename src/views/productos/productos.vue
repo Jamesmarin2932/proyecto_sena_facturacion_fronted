@@ -1,22 +1,31 @@
 <template>
   <layout-main>
     <template #slotlayout>
-      <header-button 
-        v-if="!mostrarFormulario"
-        :titulo="'DATOS DE PRODUCTOS'" 
-        :tituloboton="'Crear producto'" 
-        :abrir="abrirFormulario" 
-      />
+      <div class="header-container" v-if="!mostrarFormulario">
+        <h1 class="titulo">DATOS DE PRODUCTOS</h1>
+        <div class="botones">
+          <el-button type="primary" @click="abrirFormulario">Crear producto</el-button>
+          <el-button type="success" @click="exportarExcel" style="margin-left: 10px;">Exportar a Excel</el-button>
+        </div>
+      </div>
 
       <!-- Formulario para gestión de producto -->
-      <formulario :titulo="'Gestión de productos'" v-model:is-open="mostrarFormulario" :is-edit="editandoFormulario">
+      <formulario
+        :titulo="'Gestión de productos'"
+        v-model:is-open="mostrarFormulario"
+        :is-edit="editandoFormulario"
+      >
         <template #slotform>
-          <formProductos :producto="producto" @guardar="guardarProducto" />
+          <formProductos
+            :producto="producto"
+            @guardar="actualizarProducto"
+            @cerrarFormulario="mostrarFormulario = false"
+          />
         </template>
       </formulario>
 
       <!-- Tabla de productos -->
-      <div v-if="!mostrarFormulario">
+      <div v-if="!mostrarFormulario" style="margin-top: 20px;">
         <el-table :data="productos" stripe style="width: 100%">
           <el-table-column prop="Codigo" label="Código" width="180" />
           <el-table-column prop="Nombre" label="Nombre" width="180" />
@@ -40,9 +49,8 @@ import { ref, onMounted } from 'vue';
 import { EditPen, Delete } from '@element-plus/icons-vue';
 import axios from 'axios';
 import LayoutMain from '../../components/LayoutMain.vue';
-import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
-import formProductos from './Componentes/formProductos.vue';
+import formProductos from './componentes/formProductos.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const mostrarFormulario = ref(false);
@@ -53,12 +61,12 @@ const productos = ref([]);
 const abrirFormulario = () => {
   mostrarFormulario.value = true;
   editandoFormulario.value = false;
-  producto.value = {}; 
+  producto.value = {};
 };
 
 const eliminarFormulario = (id) => {
   ElMessageBox.confirm(
-    `¿Está seguro de eliminar el producto?`, 
+    '¿Está seguro de eliminar el producto?',
     'ELIMINAR REGISTRO',
     {
       confirmButtonText: 'Sí',
@@ -66,53 +74,48 @@ const eliminarFormulario = (id) => {
       type: 'error',
     }
   )
-  .then(async () => {
-    const url = `http://localhost:8000/api/nombre_productos/delete/${id}`;
-
-    try {
-      const response = await axios.delete(url);
-      if (response.status === 200) {
-        ElMessage({
-          type: 'success',
-          message: 'Producto eliminado con éxito',
-        });
-        productos.value = productos.value.filter(p => p.id !== id);
-      } else {
-        ElMessage({
-          type: 'error',
-          message: 'La eliminación no fue exitosa',
-        });
+    .then(async () => {
+      try {
+        const response = await axios.delete(`http://127.0.0.1:8000/api/nombre_productos/delete/${id}`);
+        if (response.status === 200) {
+          ElMessage.success('Producto eliminado con éxito');
+          productos.value = productos.value.filter(p => p.id !== id);
+        }
+      } catch (error) {
+        ElMessage.error('Error al eliminar el producto');
       }
-    } catch (error) {
-      console.error('Error al eliminar el producto:', error);
-      ElMessage({
-        type: 'error',
-        message: 'Hubo un error al eliminar el producto',
-      });
-    }
-  })
-  .catch(() => {
-    ElMessage({
-      type: 'info',
-      message: 'Solicitud cancelada',
+    })
+    .catch(() => {
+      ElMessage.info('Eliminación cancelada');
     });
-  });
 };
 
 const editarFormulario = async (id) => {
   mostrarFormulario.value = true;
   editandoFormulario.value = true;
-
   try {
     const response = await axios.get(`http://127.0.0.1:8000/api/nombre_productos/getdataById/${id}`);
     producto.value = { ...response.data.data };
   } catch (error) {
-    console.error('Error al obtener el producto:', error);
-    ElMessage({
-      type: 'error',
-      message: 'Hubo un error al cargar los datos del producto',
-    });
+    ElMessage.error('Error al cargar los datos del producto');
   }
+};
+
+const actualizarProducto = async (productoActualizado) => {
+  try {
+    const response = await axios.put(`http://127.0.0.1:8000/api/nombre_productos/update/${productoActualizado.id}`, productoActualizado);
+    if (response.status === 200) {
+      ElMessage.success('Producto actualizado con éxito');
+      obtenerProductos();
+      mostrarFormulario.value = false;
+    }
+  } catch (error) {
+    ElMessage.error('Error al actualizar el producto');
+  }
+};
+
+const exportarExcel = () => {
+  ElMessage.info('Función exportar aún no implementada');
 };
 
 const obtenerProductos = async () => {
@@ -120,7 +123,7 @@ const obtenerProductos = async () => {
     const response = await axios.get('http://127.0.0.1:8000/api/nombre_productos/getdata');
     productos.value = response.data.data;
   } catch (error) {
-    console.error('Error al obtener productos:', error);
+    ElMessage.error('Error al obtener productos');
   }
 };
 
@@ -130,4 +133,24 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 0 10px;
+}
+
+.titulo {
+  flex: 1;
+  text-align: center;
+  margin: 0;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.botones {
+  display: flex;
+  gap: 10px;
+}
 </style>

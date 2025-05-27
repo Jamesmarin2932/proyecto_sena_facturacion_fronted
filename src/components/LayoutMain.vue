@@ -11,7 +11,7 @@ import SideBarMain from './SideBarMain.vue'
         <NavBar/>
     </el-header>
 </el-container>
-<el-container>
+<el-container>.....
 
     <el-aside width="250px">
         <SideBarMain/>

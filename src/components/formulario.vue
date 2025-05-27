@@ -1,34 +1,48 @@
+<!-- src/components/formulario.vue -->
 <template>
-    <div class="container-header" v-if="isVisible">
-      <h1 class="titulo">{{ titulo }}</h1>
-      <el-row justify="end" align-items="middle">
-        <el-button type="primary" @click="guardarFormulario">{{ tituloBoton }}</el-button>
-        <el-button type="danger" @click="irAtras">Cancelar</el-button>
-      </el-row>
+  <div class="container-header" v-if="isVisible">
+    <h2 class="titulo">{{ titulo }}</h2>
+    <div class="form-content">
       <slot name="slotform"></slot>
     </div>
-  </template>
-  
-  <script setup>
-  import { computed, ref } from 'vue';
-  
-  const propiedad = defineProps({
-    titulo: String,
-    isEdit: Boolean,
-    isOpen: Boolean
-  });
-  
-  const tituloBoton = computed(() => (propiedad.isEdit ? 'Actualizar' : 'Guardar'));
-  const isVisible = computed(() => propiedad.isOpen);
-  const $emit = defineEmits(['update:is-open', 'guardar']);
-  
-  const irAtras = () => {
-    $emit('update:is-open', false);
-  };
-  
- 
-  const guardarFormulario = () => {
-    $emit('guardar');
-  };
-  </script>
-  
+  </div>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+
+const props = defineProps({
+  titulo: String,
+  isOpen: Boolean
+});
+
+const isVisible = computed(() => props.isOpen);
+</script>
+
+<style scoped>
+.container-header {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #f9fafb;
+}
+
+.titulo {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.5rem;
+  margin: 0;
+  color: #303133;
+  font-family: 'Roboto', sans-serif;
+}
+
+.form-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+</style>
+

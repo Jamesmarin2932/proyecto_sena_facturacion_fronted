@@ -1,17 +1,25 @@
 <template>
   <layout-main>
     <template #slotlayout>
-      <header-button 
-        v-if="!mostrarFormulario"
-        :titulo="'DATOS DE CLIENTES'" 
-        :tituloboton="'Crear cliente'" 
-        :abrir="abrirFormulario" 
-      />
+      <h1 class="titulo-seccion">DATOS DE TERCEROS</h1>
+
+      <div class="botones-container" v-if="!mostrarFormulario">
+        <el-button type="primary" @click="abrirFormulario">Crear tercero</el-button>
+        <el-button type="success" @click="exportarExcel">Exportar a Excel</el-button>
+      </div>
 
       <!-- Formulario para gestión de cliente -->
-      <formulario :titulo="'Gestión de clientes'" v-model:is-open="mostrarFormulario" :is-edit="editandoFormulario">
+      <formulario 
+        :titulo="''" 
+        v-model:is-open="mostrarFormulario"
+        @cerrarFormulario="cerrarFormularioHandler"
+      >
         <template #slotform>
-          <formClientes :cliente="cliente" @guardar="actualizarCliente" />
+          <formClientes 
+            :cliente="cliente" 
+            @guardar="actualizarCliente"
+            @cerrarFormulario="cerrarFormularioHandler"
+          />
         </template>
       </formulario>
 
@@ -27,11 +35,9 @@
           <el-table-column prop="telefono" label="Teléfono" width="180" />
           <el-table-column prop="correo" label="Correo" />
           <el-table-column fixed="right" label="Opciones" min-width="120">
-            <template #default="registro">
-              <!-- Botón de edición -->
-              <el-button link type="primary" :icon="EditPen" @click="editarFormulario(registro.row.id)" />
-              <!-- Botón de eliminación -->
-              <el-button link type="danger" :icon="Delete" @click="eliminarFormulario(registro.row.id)" />
+            <template #default="scope">
+              <el-button link type="primary" :icon="EditPen" @click="editarFormulario(scope.row.id)" />
+              <el-button link type="danger" :icon="Delete" @click="eliminarFormulario(scope.row.id)" />
             </template>
           </el-table-column>
         </el-table>
@@ -42,81 +48,47 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { EditPen, Delete } from '@element-plus/icons-vue';
 import axios from 'axios';
+import { EditPen, Delete } from '@element-plus/icons-vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+
 import LayoutMain from '../../components/LayoutMain.vue';
 import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
 import formClientes from '../clientes/Componentes/formClientes.vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
 
 const mostrarFormulario = ref(false);
 const editandoFormulario = ref(false);
-const cliente = ref({}); 
+const cliente = ref({});
 const clientes = ref([]);
 
-
+// Abrir formulario nuevo cliente
 const abrirFormulario = () => {
   mostrarFormulario.value = true;
   editandoFormulario.value = false;
-  cliente.value = {}; 
+  cliente.value = {};
 };
 
-// Método para eliminar un cliente
-const eliminarFormulario = (id) => {
-  ElMessageBox.confirm(
-    `¿Está seguro de eliminar el cliente?`, 
-    'ELIMINAR REGISTRO',
-    {
-      confirmButtonText: 'Sí',
-      cancelButtonText: 'Cancelar',
-      type: 'error',
-    }
-  )
-  .then(async () => {
-    
-    const url = `http://127.0.0.1:8000/api/dato_clientes/delete/${id}`;
-
-    try {
-      
-      const response = await axios.delete(url);
-
-      if (response.status === 200) {
-        
-        ElMessage({
-          type: 'success',
-          message: 'Cliente eliminado con éxito',
-        });
-
-       
-        clientes.value = clientes.value.filter(cliente => cliente.id !== id);
-      } else {
-        
-        ElMessage({
-          type: 'error',
-          message: 'La eliminación no fue exitosa',
-        });
-      }
-    } catch (error) {
-      console.error('Error al eliminar el cliente:', error);
-      
-      ElMessage({
-        type: 'error',
-        message: 'Hubo un error al eliminar el cliente',
-      });
-    }
-  })
-  .catch(() => {
-    
-    ElMessage({
-      type: 'info',
-      message: 'Solicitud cancelada',
-    });
-  });
+// Cerrar formulario y limpiar cliente
+const cerrarFormularioHandler = () => {
+  mostrarFormulario.value = false;
+  cliente.value = {};
 };
 
+// Obtener clientes
+const getClientes = async () => {
+  try {
+    const response = await axios.get('http://127.0.0.1:8000/api/dato_clientes/getdata');
+    clientes.value = response.data.data;
+  } catch (error) {
+    console.error('Error al obtener clientes:', error);
+  }
+};
 
-
+// Editar cliente
 const editarFormulario = async (id) => {
   mostrarFormulario.value = true;
   editandoFormulario.value = true;
@@ -133,36 +105,92 @@ const editarFormulario = async (id) => {
   }
 };
 
-
+// Actualizar cliente (crear o editar)
 const actualizarCliente = async (clienteActualizado) => {
   try {
-    const response = await axios.put(`http://127.0.0.1:8000/api/dato_clientes/update/${clienteActualizado.id}`, clienteActualizado);
-    if (response.status === 200) {
-      ElMessage({
-        type: 'success',
-        message: 'Cliente actualizado con éxito',
-      });
-
-      
-      getClientes();
-      mostrarFormulario.value = false; 
+    if (editandoFormulario.value) {
+      // Actualizar cliente existente
+      const response = await axios.put(`http://127.0.0.1:8000/api/dato_clientes/update/${clienteActualizado.id}`, clienteActualizado);
+      if (response.status === 200) {
+        ElMessage({ type: 'success', message: 'Cliente actualizado con éxito' });
+        getClientes();
+        cerrarFormularioHandler();
+      }
+    } else {
+      // Crear nuevo cliente
+      const response = await axios.post('http://127.0.0.1:8000/api/dato_clientes/save', clienteActualizado);
+      if (response.status === 200 || response.status === 201) {
+        ElMessage({ type: 'success', message: 'Tercero creado con éxito' });
+        getClientes();
+        cerrarFormularioHandler();
+      } else {
+        ElMessage({ type: 'error', message: 'Error al crear tercero' });
+      }
     }
   } catch (error) {
-    console.error('Error al actualizar el cliente:', error);
-    ElMessage({
-      type: 'error',
-      message: 'Hubo un error al actualizar el cliente',
-    });
+    console.error('Error al guardar el cliente:', error);
+    ElMessage({ type: 'error', message: 'Hubo un error al guardar el cliente' });
   }
 };
 
+// Eliminar cliente
+const eliminarFormulario = (id) => {
+  ElMessageBox.confirm(
+    '¿Está seguro de eliminar el cliente?',
+    'ELIMINAR REGISTRO',
+    {
+      confirmButtonText: 'Sí',
+      cancelButtonText: 'Cancelar',
+      type: 'error',
+    }
+  )
+  .then(async () => {
+    try {
+      const response = await axios.delete(`http://127.0.0.1:8000/api/dato_clientes/delete/${id}`);
+      if (response.status === 200) {
+        ElMessage({ type: 'success', message: 'Cliente eliminado con éxito' });
+        clientes.value = clientes.value.filter(c => c.id !== id);
+      } else {
+        ElMessage({ type: 'error', message: 'La eliminación no fue exitosa' });
+      }
+    } catch (error) {
+      console.error('Error al eliminar el cliente:', error);
+      ElMessage({ type: 'error', message: 'Hubo un error al eliminar el cliente' });
+    }
+  })
+  .catch(() => {
+    ElMessage({ type: 'info', message: 'Solicitud cancelada' });
+  });
+};
 
-const getClientes = async () => {
+// Función para exportar la tabla a Excel
+const exportarExcel = () => {
+  if (!clientes.value.length) {
+    ElMessage({ type: 'warning', message: 'No hay datos para exportar' });
+    return;
+  }
+
+  const datosParaExportar = clientes.value.map(({ tipo_identificacion, numero_identificacion, nombres, apellidos, direccion, ciudad, telefono, correo }) => ({
+    "Tipo de identificación": tipo_identificacion,
+    "Número": numero_identificacion,
+    "Nombres": nombres,
+    "Apellidos": apellidos,
+    "Dirección": direccion,
+    "Ciudad": ciudad,
+    "Teléfono": telefono,
+    "Correo": correo,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(datosParaExportar);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
+  const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/dato_clientes/getdata');
-    clientes.value = response.data.data;
-  } catch (error) {
-    console.error('Error al obtener clientes:', error);
+    saveAs(new Blob([wbout], { type: "application/octet-stream" }), "clientes.xlsx");
+  } catch (e) {
+    console.error(e);
+    ElMessage({ type: "error", message: "Error al exportar a Excel" });
   }
 };
 
@@ -170,6 +198,18 @@ onMounted(() => {
   getClientes();
 });
 </script>
-
 <style scoped>
+.titulo-seccion {
+  text-align: center;
+  margin: 20px 0 10px;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.botones-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 20px;
+}
 </style>

@@ -10,18 +10,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
     "@vue/cli-service": "^5.0.8",
     "axios": "^1.7.7",
     "dayjs": "^1.11.13",
-    "element-plus": "^2.8.8",
+    "element-plus": "^2.9.10",
+    "file-saver": "^2.0.5",
     "flatpickr": "^4.6.13",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "vue": "^3.4.37",
     "vue-flatpickr-component": "^11.0.5",
-    "vue-router": "^4.4.5"
+    "vue-router": "^4.5.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.4",
     "vite": "^5.4.1"
   }
-  
 }
