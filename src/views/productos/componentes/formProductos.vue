@@ -22,6 +22,18 @@
           </el-form-item>
         </el-col>
 
+        <el-col :xs="24">
+          <el-form-item label="Descripción" prop="descripcion">
+            <el-input
+              v-model="ruleForm.descripcion"
+              type="textarea"
+              :rows="3"
+              placeholder="Ingrese una descripción"
+              clearable
+            />
+          </el-form-item>
+        </el-col>
+
         <el-col :xs="24" :md="12">
           <el-form-item label="Precio" prop="precio">
             <el-input v-model.number="ruleForm.precio" placeholder="Ingrese el precio" clearable type="number" />
@@ -29,8 +41,8 @@
         </el-col>
 
         <el-col :xs="24" :md="12">
-          <el-form-item label="Cantidad" prop="cantidad">
-            <el-input v-model.number="ruleForm.cantidad" placeholder="Ingrese la cantidad" clearable type="number" />
+          <el-form-item label="Stock" prop="stock">
+            <el-input v-model.number="ruleForm.stock" placeholder="Ingrese el stock" clearable type="number" />
           </el-form-item>
         </el-col>
 
@@ -58,31 +70,36 @@ export default {
   setup(props, { emit }) {
     const formSize = ref('default');
     const ruleFormRef = ref(null);
+
     const ruleForm = reactive({
       codigo: '',
       nombre: '',
+      descripcion: '',
       precio: null,
-      cantidad: null
+      stock: null
     });
 
     const rules = reactive({
       codigo: [{ required: true, message: 'El código es obligatorio', trigger: 'blur' }],
       nombre: [{ required: true, message: 'El nombre es obligatorio', trigger: 'blur' }],
+      descripcion: [{ required: true, message: 'La descripción es obligatoria', trigger: 'blur' }],
       precio: [{ required: true, message: 'El precio es obligatorio', trigger: 'blur' }],
-      cantidad: [{ required: true, message: 'La cantidad es obligatoria', trigger: 'blur' }]
+      stock: [{ required: true, message: 'El stock es obligatorio', trigger: 'blur' }]
     });
 
     watch(() => props.producto, (newProducto) => {
       if (newProducto && Object.keys(newProducto).length) {
         ruleForm.codigo = newProducto.codigo || '';
         ruleForm.nombre = newProducto.nombre || '';
+        ruleForm.descripcion = newProducto.descripcion || '';
         ruleForm.precio = newProducto.precio || null;
-        ruleForm.cantidad = newProducto.cantidad || null;
+        ruleForm.stock = newProducto.stock || null;
       } else {
         ruleForm.codigo = '';
         ruleForm.nombre = '';
+        ruleForm.descripcion = '';
         ruleForm.precio = null;
-        ruleForm.cantidad = null;
+        ruleForm.stock = null;
       }
     }, { immediate: true });
 
@@ -93,11 +110,13 @@ export default {
             id: props.producto?.id || null,
             codigo: ruleForm.codigo,
             nombre: ruleForm.nombre,
+            descripcion: ruleForm.descripcion,
             precio: ruleForm.precio,
-            cantidad: ruleForm.cantidad
+            stock: ruleForm.stock
           };
           emit('guardar', datosProducto);
           ruleFormRef.value.resetFields();
+          emit('cerrarFormulario');
         } else {
           ElMessage.error('Por favor complete todos los campos correctamente.');
           return false;
@@ -139,4 +158,3 @@ export default {
   margin-top: 10px;
 }
 </style>
-

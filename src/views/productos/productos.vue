@@ -18,7 +18,7 @@
         <template #slotform>
           <formProductos
             :producto="producto"
-            @guardar="actualizarProducto"
+            @guardar="guardarProducto"
             @cerrarFormulario="mostrarFormulario = false"
           />
         </template>
@@ -101,16 +101,37 @@ const editarFormulario = async (id) => {
   }
 };
 
-const actualizarProducto = async (productoActualizado) => {
-  try {
-    const response = await axios.put(`http://127.0.0.1:8000/api/nombre_productos/update/${productoActualizado.id}`, productoActualizado);
-    if (response.status === 200) {
-      ElMessage.success('Producto actualizado con éxito');
-      obtenerProductos();
-      mostrarFormulario.value = false;
+const guardarProducto = async (productoForm) => {
+  if (editandoFormulario.value) {
+    // Actualizar producto
+    try {
+      const response = await axios.put(
+        `http://127.0.0.1:8000/api/nombre_productos/update/${productoForm.id}`,
+        productoForm
+      );
+      if (response.status === 200) {
+        ElMessage.success('Producto actualizado con éxito');
+        obtenerProductos();
+        mostrarFormulario.value = false;
+      }
+    } catch (error) {
+      ElMessage.error('Error al actualizar el producto');
     }
-  } catch (error) {
-    ElMessage.error('Error al actualizar el producto');
+  } else {
+    // Crear producto nuevo
+    try {
+      const response = await axios.post(
+        'http://127.0.0.1:8000/api/nombre_productos/save',
+        productoForm
+      );
+      if (response.status === 201) {
+        ElMessage.success('Producto creado con éxito');
+        obtenerProductos();
+        mostrarFormulario.value = false;
+      }
+    } catch (error) {
+      ElMessage.error('Error al crear el producto');
+    }
   }
 };
 
