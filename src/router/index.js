@@ -7,7 +7,7 @@ import Inicio from '../components/Inicio.vue'
 // Módulos
 import Clientes from '../views/clientes/clientes.vue'
 import Productos from '../views/productos/productos.vue'
-import Facturas from '../views/facturas/Facturas.vue'
+import Facturas from '../views/Facturas/Facturas.vue'
 import Usuarios from '../views/usuarios/usuarios.vue'
 
 // Bancos
