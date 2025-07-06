@@ -1,184 +1,267 @@
 <template>
-  <el-form 
-    ref="ruleFormRef"
-    :model="ruleForm"
-    :rules="rules"
-    label-width="auto"
-    class="demo-ruleForm form-spacing"
-    :size="formSize"
-    status-icon
-  >
-    <el-form-item label="Tipo de identificación" prop="tipo_identificacion">
-      <el-select v-model="ruleForm.tipo_identificacion" placeholder="Seleccione tipo de identificación">
-        <el-option label="C.C" value="CC" />
-        <el-option label="NIT" value="NIT" />
-        <el-option label="Cédula de Extranjería" value="CEDULA_EXTRANJERIA" />
-      </el-select>
-    </el-form-item>
+  <div>
+    <el-form label-width="120px">
+      <el-row :gutter="20">
+        <el-col :span="8">
+          <el-form-item label="N° Factura">
+            <el-input v-model="numeroFactura" disabled />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="Cliente">
+            <el-autocomplete
+              v-model="clienteNombre"
+              :fetch-suggestions="buscarClientes"
+              placeholder="Buscar cliente"
+              @select="seleccionarCliente"
+              clearable
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="Fecha">
+            <el-date-picker v-model="fecha" type="date" placeholder="Seleccionar fecha" style="width: 100%" />
+          </el-form-item>
+        </el-col>
+      </el-row>
 
-    <el-form-item label="N° identificación" prop="numero_identificacion">
-      <el-input v-model="ruleForm.numero_identificacion" />
-    </el-form-item>
+      <el-divider />
 
-    <el-form-item label="Cliente" prop="cliente">
-      <el-input v-model="ruleForm.cliente" />
-    </el-form-item>
+      <el-button type="primary" @click="agregarProducto">Agregar Producto</el-button>
 
-    <el-form-item label="Fecha" prop="fecha">
-      <el-input
-        v-model="ruleForm.fecha"
-        type="date"
-        placeholder="Selecciona un día"
-      />
-    </el-form-item>
+      <el-table :data="productosSeleccionados" style="width: 100%; margin-top: 20px;">
+        <el-table-column label="Producto">
+          <template #default="{ row }">
+            <el-select v-model="row.codigo_del_producto" placeholder="Producto">
+              <el-option
+                v-for="producto in productosDisponibles"
+                :key="producto.id"
+                :label="producto.nombre"
+                :value="producto.id"
+              />
+            </el-select>
+          </template>
+        </el-table-column>
 
-    <el-form-item label="Código del producto" prop="codigo_del_producto">
-      <el-input v-model="ruleForm.codigo_del_producto" />
-    </el-form-item>
+        <el-table-column label="Cantidad">
+          <template #default="{ row }">
+            <el-input-number v-model="row.cantidad" :min="1" />
+          </template>
+        </el-table-column>
 
-    <el-form-item label="Producto" prop="producto">
-      <el-input v-model="ruleForm.producto" />
-    </el-form-item>
+        <el-table-column label="Precio Unitario">
+          <template #default="{ row }">
+            <el-input-number v-model="row.precio_unitario" :min="0" :step="0.01" />
+          </template>
+        </el-table-column>
 
-    <el-form-item label="Cantidad" prop="cantidad">
-      <el-input v-model.number="ruleForm.cantidad" type="number" placeholder="Ingrese la cantidad" @input="calcularIvaYTotal" />
-    </el-form-item>
+        <el-table-column label="Descuento">
+          <template #default="{ row }">
+            <el-input-number v-model="row.descuento" :min="0" :step="0.01" />
+          </template>
+        </el-table-column>
 
-    <el-form-item label="Precio unitario" prop="precio_unitario">
-      <el-input v-model.number="ruleForm.precio_unitario" type="number" placeholder="Ingrese el precio unitario" @input="calcularIvaYTotal" />
-    </el-form-item>
+        <el-table-column label="Acciones">
+          <template #default="{ $index }">
+            <el-button type="danger" icon="el-icon-delete" @click="eliminarProducto($index)" circle />
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-form-item label="Sub total" prop="sub_total">
-      <el-input v-model.number="ruleForm.sub_total" type="number" placeholder="Ingrese el sub total" :value="calcularSubtotal()" readonly />
-    </el-form-item>
+      <el-divider />
 
-    <el-form-item label="Descuento" prop="descuento">
-      <el-input v-model.number="ruleForm.descuento" type="number" placeholder="Ingrese el descuento" @input="calcularIvaYTotal" />
-    </el-form-item>
+      <div style="text-align: right;">
+        <p><strong>Subtotal:</strong> ${{ calcularTotales.subTotal.toFixed(2) }}</p>
+        <p><strong>Descuento Total:</strong> ${{ calcularTotales.descuentoTotal.toFixed(2) }}</p>
+        <p><strong>IVA (19%):</strong> ${{ calcularTotales.iva.toFixed(2) }}</p>
+        <p><strong>Total:</strong> ${{ calcularTotales.total.toFixed(2) }}</p>
+      </div>
 
-    <el-form-item label="IVA" prop="iva">
-      <el-input v-model.number="ruleForm.iva" type="number" :value="calcularIva()" readonly />
-    </el-form-item>
-
-    <el-form-item label="Total" prop="total">
-      <el-input v-model.number="ruleForm.total" type="number" :value="calcularTotal()" readonly />
-    </el-form-item>
-
-    <el-form-item>
-      <el-button type="primary" @click="guardarFactura">Guardar</el-button>
-    </el-form-item>
-
-  </el-form>
+      <div style="margin-top: 20px; text-align: right;">
+        <el-button @click="$emit('cancelado')">Cancelar</el-button>
+        <el-button type="primary" @click="validarYGuardar" :disabled="productosSeleccionados.length === 0">
+          Guardar Factura
+        </el-button>
+      </div>
+    </el-form>
+  </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
-import axios from 'axios';
-import { ElMessage, ElForm, ElInput, ElButton } from 'element-plus';
-import 'element-plus/dist/index.css'; 
+import { ref, computed, watch, onMounted } from 'vue'
+import axios from 'axios'
+import { ElMessage } from 'element-plus'
 
-const formSize = ref('default');
-const ruleFormRef = ref(null);
+const props = defineProps({ factura: Object })
+const emit = defineEmits(['guardado', 'cancelado'])
 
-const ruleForm = reactive({
-  tipo_identificacion: '',
-  numero_identificacion: '',
-  cliente: '',
-  fecha: new Date().toISOString().split('T')[0],  
-  codigo_del_producto: '',
-  producto: '',
-  cantidad: 0,
-  precio_unitario: 0,
-  sub_total: 0,
-  descuento: 0,
-  iva: 0,
-  total: 0,
-});
+const numeroFactura = ref('FV-00001')
+const clienteSeleccionado = ref(null)
+const clienteNombre = ref('')
+const fecha = ref(new Date())
+const productosSeleccionados = ref([])
 
-// Reglas de validación (si las necesitas)
-const rules = reactive({
-  // Puedes agregar reglas de validación aquí si es necesario
-});
+const clientes = ref([])
+const productosDisponibles = ref([])
 
-
-const calcularSubtotal = () => {
-  return ruleForm.cantidad * ruleForm.precio_unitario;
-};
-
-const calcularIvaYTotal = () => {
-  const subtotal = calcularSubtotal();
-  const subtotalConDescuento = subtotal - ruleForm.descuento;
-  const iva = subtotalConDescuento * 0.19;
-  ruleForm.sub_total = subtotalConDescuento;
-  ruleForm.iva = iva;
-  const total = subtotalConDescuento + iva;
-  ruleForm.total = total;
-};
-
-const calcularIva = () => {
-  const subtotalConDescuento = calcularSubtotal() - ruleForm.descuento;
-  return subtotalConDescuento * 0.19;
-};
-
-const calcularTotal = () => {
-  const subtotalConDescuento = calcularSubtotal() - ruleForm.descuento;
-  return subtotalConDescuento + calcularIva();
-};
-
-const guardarFactura = async () => {
-  ruleFormRef.value.validate(async (valid) => {
-    if (valid) {
-      await crearFactura();
-    
-      Object.keys(ruleForm).forEach(key => {
-        ruleForm[key] = '';
-      });
-      ruleFormRef.value.resetFields();
-    } else {
-      ElMessage.error('Error al validar el formulario');
-    }
-  });
-};
-
-// Función para crear la factura en el backend
-const crearFactura = async () => {
-  const url = 'http://127.0.0.1:8000/api/descripcion_facturas/save';
-  
-  // Convertir la fecha a formato 'yyyy-MM-dd' (asegúrate de que la fecha esté como string)
-  const fechaFormateada = ruleForm.fecha ? ruleForm.fecha : '';
-
-  const dataFormulario = {
-    tipo_identificacion: ruleForm.tipo_identificacion,
-    numero_identificacion: ruleForm.numero_identificacion,
-    cliente: ruleForm.cliente,
-    fecha: fechaFormateada,  // Enviar la fecha formateada como string
-    codigo_del_producto: ruleForm.codigo_del_producto,
-    producto: ruleForm.producto,
-    cantidad: ruleForm.cantidad,
-    precio_unitario: ruleForm.precio_unitario,
-    sub_total: ruleForm.sub_total,
-    descuento: ruleForm.descuento,
-    iva: ruleForm.iva,
-    total: ruleForm.total,
-  };
-
+const buscarClientes = async (queryString, cb) => {
   try {
-    const response = await axios.post(url, dataFormulario);
-    if (response.data.data) {
-      ElMessage.success('Factura creada con éxito');
-      ruleForm.numero_factura = response.data.data.numero_factura; // Mostrar el número de factura generado
-    }
+    const res = await axios.get('http://127.0.0.1:8000/api/dato_clientes/getdata')
+    const lista = Array.isArray(res.data.data) ? res.data.data : []
+
+    const resultados = lista
+      .filter(c => {
+        const nombre = c.nombres || ''
+        const apellido = c.apellidos || ''
+        const nombreCompleto = `${nombre} ${apellido}`.toLowerCase()
+        return nombreCompleto.includes(queryString.toLowerCase())
+      })
+      .map(c => ({
+        value: `${c.nombres || ''} ${c.apellidos || ''}`,
+        id: c.id
+      }))
+
+    cb(resultados)
   } catch (error) {
-    ElMessage.error('Error al guardar los datos');
+    console.error('Error al buscar clientes:', error)
+    cb([])
   }
-};
-</script>
-
-<style scoped>
-.form-spacing {
-  margin-top: 30px;
 }
-</style>
 
+const seleccionarCliente = (item) => {
+  clienteSeleccionado.value = item.id
+  clienteNombre.value = item.value
+}
 
+const cargarProductos = async () => {
+  try {
+    const res = await axios.get('/nombre_productos/getdata')
+    productosDisponibles.value = res.data
+  } catch (error) {
+    ElMessage.error('Error al cargar productos')
+  }
+}
 
+onMounted(() => {
+  cargarProductos()
+})
+
+watch(
+  () => props.factura,
+  (nuevaFactura) => {
+    if (nuevaFactura) {
+      numeroFactura.value = nuevaFactura.numero_factura || 'FV-00001'
+      clienteSeleccionado.value = nuevaFactura.cliente_id || null
+      fecha.value = nuevaFactura.fecha ? new Date(nuevaFactura.fecha) : new Date()
+      productosSeleccionados.value = nuevaFactura.productos
+        ? nuevaFactura.productos.map(p => ({
+            codigo_del_producto: p.codigo_del_producto,
+            cantidad: p.cantidad,
+            precio_unitario: p.precio_unitario,
+            descuento: p.descuento || 0
+          }))
+        : []
+    } else {
+      numeroFactura.value = 'FV-00001'
+      clienteSeleccionado.value = null
+      clienteNombre.value = ''
+      fecha.value = new Date()
+      productosSeleccionados.value = []
+    }
+  },
+  { immediate: true }
+)
+
+const agregarProducto = () => {
+  productosSeleccionados.value.push({
+    codigo_del_producto: null,
+    cantidad: 1,
+    precio_unitario: 0,
+    descuento: 0
+  })
+}
+
+const eliminarProducto = (index) => {
+  productosSeleccionados.value.splice(index, 1)
+}
+
+const calcularTotales = computed(() => {
+  let subTotal = 0
+  let descuentoTotal = 0
+
+  productosSeleccionados.value.forEach((p) => {
+    const subtotalItem = p.cantidad * p.precio_unitario
+    subTotal += subtotalItem
+    descuentoTotal += p.descuento || 0
+  })
+
+  const baseImponible = subTotal - descuentoTotal
+  const iva = baseImponible * 0.19
+  const total = baseImponible + iva
+
+  return {
+    subTotal,
+    descuentoTotal,
+    iva,
+    total
+  }
+})
+
+const validarYGuardar = () => {
+  if (!clienteSeleccionado.value) {
+    ElMessage.warning('Debe seleccionar un cliente')
+    return
+  }
+
+  if (productosSeleccionados.value.length === 0) {
+    ElMessage.warning('Debe agregar al menos un producto')
+    return
+  }
+
+  for (const p of productosSeleccionados.value) {
+    if (!p.codigo_del_producto) {
+      ElMessage.warning('Debe seleccionar un producto en todos los ítems')
+      return
+    }
+    if (p.cantidad <= 0) {
+      ElMessage.warning('La cantidad debe ser mayor que cero')
+      return
+    }
+    if (p.precio_unitario < 0) {
+      ElMessage.warning('El precio unitario no puede ser negativo')
+      return
+    }
+  }
+
+  const productosFormateados = productosSeleccionados.value.map((p) => {
+    const productoInfo = productosDisponibles.value.find((prod) => prod.id === p.codigo_del_producto)
+    const subtotal = p.cantidad * p.precio_unitario
+    const descuento = p.descuento || 0
+    const iva = (subtotal - descuento) * 0.19
+    const total = subtotal - descuento + iva
+
+    return {
+      codigo_del_producto: p.codigo_del_producto,
+      producto: productoInfo?.nombre || '',
+      cantidad: p.cantidad,
+      precio_unitario: p.precio_unitario,
+      descuento,
+      iva,
+      total
+    }
+  })
+
+  emit('guardado', {
+    numero_factura: numeroFactura.value,
+    cliente_id: clienteSeleccionado.value,
+    fecha: fecha.value instanceof Date ? fecha.value.toISOString().split('T')[0] : fecha.value,
+    productos: productosFormateados,
+    sub_total: calcularTotales.value.subTotal,
+    descuento: calcularTotales.value.descuentoTotal,
+    iva: calcularTotales.value.iva,
+    total: calcularTotales.value.total
+  })
+
+  productosSeleccionados.value = []
+}
+</script>
