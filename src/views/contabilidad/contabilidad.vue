@@ -1,6 +1,6 @@
 <template>
     <div>
-      <h2>Módulo de Contabilidad</h2>
+      
       <router-view />
     </div>
   </template>

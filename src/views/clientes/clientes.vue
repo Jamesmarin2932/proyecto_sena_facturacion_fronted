@@ -82,7 +82,8 @@ const cerrarFormularioHandler = () => {
 const getClientes = async () => {
   try {
     const response = await axios.get('http://127.0.0.1:8000/api/dato_clientes/getdata');
-    clientes.value = response.data.data;
+    clientes.value = response.data.data.reverse();
+
   } catch (error) {
     console.error('Error al obtener clientes:', error);
   }
@@ -170,16 +171,28 @@ const exportarExcel = () => {
     return;
   }
 
-  const datosParaExportar = clientes.value.map(({ tipo_identificacion, numero_identificacion, nombres, apellidos, direccion, ciudad, telefono, correo }) => ({
-    "Tipo de identificación": tipo_identificacion,
-    "Número": numero_identificacion,
-    "Nombres": nombres,
-    "Apellidos": apellidos,
-    "Dirección": direccion,
-    "Ciudad": ciudad,
-    "Teléfono": telefono,
-    "Correo": correo,
-  }));
+  const datosParaExportar = clientes.value.map(cliente => ({
+  "Tipo de identificación": cliente.tipo_identificacion,
+  "Número": cliente.numero_identificacion,
+  "Nombres": cliente.nombres,
+  "Apellidos": cliente.apellidos,
+  "Razon social":cliente.razon_social,
+  "Tipo perosna":cliente.tipo_persona,
+  "Pais":cliente.pais,
+  "Departamento":cliente.departamento,
+  "Dirección": cliente.direccion,
+  "Ciudad": cliente.ciudad,
+  "Codigo postal":cliente.codigo_postal,
+  "Teléfono": cliente.telefono,
+  "Correo": cliente.correo,
+  "Tipo de tercero": cliente.tipo_tercero,
+  "Cuenta gasto":cliente.cuenta_gasto,
+  "Actividad económica": cliente.actividad_economica,
+  "Responsable IVA": cliente.responsable_iva ? 'Sí' : 'No',
+"Observaciones":cliente.observaciones,
+  // Otros campos que tengas
+}));
+
 
   const worksheet = XLSX.utils.json_to_sheet(datosParaExportar);
   const workbook = XLSX.utils.book_new();
@@ -208,8 +221,9 @@ onMounted(() => {
 
 .botones-container {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 10px;
   margin-bottom: 20px;
 }
+
 </style>

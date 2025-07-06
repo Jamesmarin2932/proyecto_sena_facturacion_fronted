@@ -3,7 +3,7 @@
     :default-active="activeIndex"
     background-color="#081323"
     text-color="#fefefe"
-    class="el-menu-demo modern-font"
+    class="el-menu-demo"
     mode="horizontal"
     :ellipsis="false"
     @select="handleSelect"
@@ -15,6 +15,11 @@
         src="../components/imagenes/Diseño sin título.jpg"
         alt="logo"
       />
+    </el-menu-item>
+
+    <!-- Nombre de la empresa -->
+    <el-menu-item index="empresa" class="empresa-nombre">
+      <span class="empresa-texto">VCC ENLACE HUMANO</span>
     </el-menu-item>
 
     <div class="flex-spacer"></div>
@@ -37,7 +42,7 @@ export default {
     return {
       activeIndex: '0',
       username: '',
-      userPhoto: '', // Ruta de la imagen de perfil
+      userPhoto: '',
     };
   },
   mounted() {
@@ -66,7 +71,7 @@ export default {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap');
 
 .el-menu-demo {
   display: flex;
@@ -74,7 +79,7 @@ export default {
   align-items: center;
   width: 100%;
   z-index: 10;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 14px;
 }
 
@@ -85,6 +90,19 @@ export default {
 .logo-img {
   width: 50px;
   border-radius: 6px;
+}
+
+.empresa-nombre {
+  cursor: default;
+  pointer-events: none;
+}
+
+.empresa-texto {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-left: 10px;
+  letter-spacing: 1px;
 }
 
 .user-photo {

@@ -24,7 +24,7 @@
         />
       </el-col>
       <el-col :span="4">
-        <el-button @click="modoManual = !modoManual" type="warning">
+        <el-button @click="toggleModoManual" type="warning">
           {{ modoManual ? 'Automático' : 'Manual' }}
         </el-button>
       </el-col>
@@ -42,7 +42,6 @@
             placeholder="Código o nombre de cuenta"
             clearable
             @select="item => handleSelectCuenta(row)(item)"
-
           />
         </template>
       </el-table-column>
@@ -55,7 +54,13 @@
 
       <el-table-column label="Tercero">
         <template #default="{ row }">
-          <el-input v-model="row.tercero" placeholder="Tercero" />
+          <el-autocomplete
+            v-model="row.tercero_nombre"
+            :fetch-suggestions="buscarTerceros"
+            placeholder="Buscar tercero"
+            clearable
+            @select="item => handleSelectTercero(row, item)"
+          />
         </template>
       </el-table-column>
 
@@ -106,7 +111,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
@@ -118,17 +123,16 @@ const form = reactive({
   fecha: '',
   factura: '',
   consecutivo: '',
-  detalles: [
-    {
-      cuenta: '',
-      nombreCuenta: '',
-      tercero: '',
-      concepto: '',
-      debito: 0,
-      credito: 0,
-      saldo: 0,
-    },
-  ],
+  detalles: [{
+    cuenta: '',
+    nombreCuenta: '',
+    tercero_id: null,
+    tercero_nombre: '',
+    concepto: '',
+    debito: 0,
+    credito: 0,
+    saldo: 0,
+  }],
 })
 
 const modoManual = ref(false)
@@ -137,15 +141,30 @@ const cuentasContables = ref([])
 const cargarCuentasContables = async () => {
   try {
     const response = await axios.get('http://127.0.0.1:8000/api/cuentas-contables')
-    // Aquí NO los transformes, guárdalos tal cual vienen
     cuentasContables.value = response.data
-    console.log('Cuentas cargadas (crudas):', cuentasContables.value)
   } catch (error) {
     console.error('Error al cargar cuentas contables:', error)
   }
 }
 
+const cargarConsecutivo = async () => {
+  try {
+    const response = await axios.get('http://127.0.0.1:8000/api/asientos/ultimo-consecutivo')
+    form.consecutivo = response.data.consecutivo + 1
+  } catch (error) {
+    console.error('Error al obtener consecutivo:', error)
+  }
+}
 
+const toggleModoManual = () => {
+  modoManual.value = !modoManual.value
+}
+
+watch(modoManual, (nuevoValor) => {
+  if (!nuevoValor) {
+    cargarConsecutivo()
+  }
+})
 
 const totalDebito = computed(() =>
   form.detalles.reduce((acc, item) => acc + Number(item.debito), 0)
@@ -161,7 +180,8 @@ const agregarFila = () => {
   form.detalles.push({
     cuenta: '',
     nombreCuenta: '',
-    tercero: '',
+    tercero_id: null,
+    tercero_nombre: '',
     concepto: '',
     debito: 0,
     credito: 0,
@@ -169,16 +189,65 @@ const agregarFila = () => {
   })
 }
 
-const cargarConsecutivo = async () => {
+const buscarTerceros = async (queryString, cb) => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/asientos/ultimo-consecutivo')
-    form.consecutivo = response.data.ultimo + 1
+    const res = await axios.get('http://127.0.0.1:8000/api/dato_clientes/getdata')
+    const clientes = Array.isArray(res.data) ? res.data : res.data.data || []
+
+    const resultados = clientes
+      .filter(c => {
+        const nombreCompleto = `${c.nombres} ${c.apellidos}`.toLowerCase()
+        return nombreCompleto.includes(queryString.toLowerCase())
+      })
+      .map(c => ({
+        value: `${c.nombres} ${c.apellidos}`,
+        id: c.id
+      }))
+
+    cb(resultados)
   } catch (error) {
-    console.error('Error al obtener consecutivo:', error)
+    console.error('Error al buscar terceros:', error)
+    cb([])
   }
 }
 
+const handleSelectTercero = (row, item) => {
+  row.tercero_id = item.id
+  row.tercero_nombre = item.value
+}
+
+const fetchSuggestions = (queryString, cb) => {
+  if (!Array.isArray(cuentasContables.value)) {
+    cb([])
+    return
+  }
+
+  const results = cuentasContables.value
+    .filter(cuenta => {
+      const query = queryString.toLowerCase()
+      return cuenta.codigo.toLowerCase().includes(query) || cuenta.nombre.toLowerCase().includes(query)
+    })
+    .map(c => ({
+      value: c.codigo,
+      label: `${c.codigo} - ${c.nombre}`,
+      nombreCuenta: c.nombre
+    }))
+
+  cb(results)
+}
+
+const handleSelectCuenta = (row) => (item) => {
+  row.cuenta = item.value
+  row.nombreCuenta = item.nombreCuenta
+}
+
 const guardarAsiento = async () => {
+  const sinTercero = form.detalles.some(item => !item.tercero_id)
+  if (sinTercero) {
+    ElMessage.error('Por favor, selecciona un tercero para todas las filas.')
+    return
+  }
+
   try {
     const payloads = form.detalles.map(item => ({
       consecutivo: form.consecutivo || null,
@@ -186,7 +255,7 @@ const guardarAsiento = async () => {
       fecha: dayjs(form.fecha).format('YYYY-MM-DD'),
       factura: form.factura,
       cuenta: item.cuenta,
-      tercero: item.tercero,
+      tercero_id: item.tercero_id, // ✅ Aquí guardamos el ID
       concepto: item.concepto,
       debito: item.debito,
       credito: item.credito,
@@ -202,68 +271,33 @@ const guardarAsiento = async () => {
   }
 }
 
+
 const cancelar = () => {
   form.tipo = ''
   form.fecha = ''
   form.factura = ''
   form.consecutivo = ''
-  form.detalles = [
-    {
-      cuenta: '',
-      nombreCuenta: '',
-      tercero: '',
-      concepto: '',
-      debito: 0,
-      credito: 0,
-      saldo: 0,
-    },
-  ]
+  form.detalles = [{
+    cuenta: '',
+    nombreCuenta: '',
+    tercero_id: null,
+    tercero_nombre: '',
+    concepto: '',
+    debito: 0,
+    credito: 0,
+    saldo: 0,
+  }]
   if (!modoManual.value) cargarConsecutivo()
+ emit('cancelar')
+
 }
-
-const fetchSuggestions = (queryString, cb) => {
-  if (!Array.isArray(cuentasContables.value)) {
-    console.warn('cuentasContables no es un arreglo')
-    cb([])
-    return
-  }
-
-  const results = cuentasContables.value
-    .filter(cuenta => {
-      const textoCodigo = cuenta.codigo.toLowerCase();
-      const textoNombre = cuenta.nombre.toLowerCase();
-      const query = queryString.toLowerCase();
-
-      // Compara tanto el código como el nombre
-      return textoCodigo.includes(query) || textoNombre.includes(query);
-    })
-    .map(c => ({
-      value: c.codigo,
-      label: `${c.codigo} - ${c.nombre}`,
-      nombreCuenta: c.nombre
-    }));
-
-  console.log('Resultados sugeridos:', results); // 👈
-  cb(results);
-}
-
-
-
-
-const handleSelectCuenta = (row) => (item) => {
-  console.log('Cuenta seleccionada:', item) // 👈
-  row.cuenta = item.value
-  row.nombreCuenta = item.nombreCuenta
-}
-
 
 onMounted(() => {
-  if (!modoManual.value) cargarConsecutivo()
   cargarCuentasContables()
+  if (!modoManual.value) cargarConsecutivo()
 })
 </script>
 
 <style scoped>
-/* Puedes agregar estilos aquí si es necesario */
+/* Estilos personalizados si los necesitas */
 </style>
-

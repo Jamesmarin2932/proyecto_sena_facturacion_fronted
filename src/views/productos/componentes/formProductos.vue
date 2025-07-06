@@ -5,7 +5,6 @@
       :model="ruleForm"
       :rules="rules"
       label-width="auto"
-      class="demo-ruleForm"
       :size="formSize"
       status-icon
     >
@@ -18,31 +17,25 @@
 
         <el-col :xs="24" :md="12">
           <el-form-item label="Nombre" prop="nombre">
-            <el-input v-model="ruleForm.nombre" placeholder="Ingrese el nombre del producto" clearable />
+            <el-input v-model="ruleForm.nombre" placeholder="Ingrese el nombre" clearable />
           </el-form-item>
         </el-col>
 
         <el-col :xs="24">
           <el-form-item label="Descripción" prop="descripcion">
-            <el-input
-              v-model="ruleForm.descripcion"
-              type="textarea"
-              :rows="3"
-              placeholder="Ingrese una descripción"
-              clearable
-            />
+            <el-input v-model="ruleForm.descripcion" type="textarea" rows="3" placeholder="Descripción" clearable />
           </el-form-item>
         </el-col>
 
         <el-col :xs="24" :md="12">
           <el-form-item label="Precio" prop="precio">
-            <el-input v-model.number="ruleForm.precio" placeholder="Ingrese el precio" clearable type="number" />
+            <el-input v-model.number="ruleForm.precio" type="number" placeholder="Precio" clearable />
           </el-form-item>
         </el-col>
 
         <el-col :xs="24" :md="12">
           <el-form-item label="Stock" prop="stock">
-            <el-input v-model.number="ruleForm.stock" placeholder="Ingrese el stock" clearable type="number" />
+            <el-input v-model.number="ruleForm.stock" type="number" placeholder="Stock" clearable />
           </el-form-item>
         </el-col>
 
@@ -79,48 +72,34 @@ export default {
       stock: null
     });
 
-    const rules = reactive({
-      codigo: [{ required: true, message: 'El código es obligatorio', trigger: 'blur' }],
-      nombre: [{ required: true, message: 'El nombre es obligatorio', trigger: 'blur' }],
-      descripcion: [{ required: true, message: 'La descripción es obligatoria', trigger: 'blur' }],
-      precio: [{ required: true, message: 'El precio es obligatorio', trigger: 'blur' }],
-      stock: [{ required: true, message: 'El stock es obligatorio', trigger: 'blur' }]
-    });
+    const rules = {
+      codigo: [{ required: true, message: 'Código requerido', trigger: 'blur' }],
+      nombre: [{ required: true, message: 'Nombre requerido', trigger: 'blur' }],
+      descripcion: [{ required: true, message: 'Descripción requerida', trigger: 'blur' }],
+      precio: [{ required: true, message: 'Precio requerido', trigger: 'blur' }],
+      stock: [{ required: true, message: 'Stock requerido', trigger: 'blur' }]
+    };
 
-    watch(() => props.producto, (newProducto) => {
-      if (newProducto && Object.keys(newProducto).length) {
-        ruleForm.codigo = newProducto.codigo || '';
-        ruleForm.nombre = newProducto.nombre || '';
-        ruleForm.descripcion = newProducto.descripcion || '';
-        ruleForm.precio = newProducto.precio || null;
-        ruleForm.stock = newProducto.stock || null;
-      } else {
-        ruleForm.codigo = '';
-        ruleForm.nombre = '';
-        ruleForm.descripcion = '';
-        ruleForm.precio = null;
-        ruleForm.stock = null;
-      }
+    watch(() => props.producto, (nuevoProducto) => {
+      Object.assign(ruleForm, {
+        codigo: nuevoProducto.codigo || '',
+        nombre: nuevoProducto.nombre || '',
+        descripcion: nuevoProducto.descripcion || '',
+        precio: nuevoProducto.precio ?? null,
+        stock: nuevoProducto.stock ?? null,
+        id: nuevoProducto.id ?? null
+      });
     }, { immediate: true });
 
     const guardarProducto = () => {
       ruleFormRef.value.validate((valid) => {
-        if (valid) {
-          const datosProducto = {
-            id: props.producto?.id || null,
-            codigo: ruleForm.codigo,
-            nombre: ruleForm.nombre,
-            descripcion: ruleForm.descripcion,
-            precio: ruleForm.precio,
-            stock: ruleForm.stock
-          };
-          emit('guardar', datosProducto);
-          ruleFormRef.value.resetFields();
-          emit('cerrarFormulario');
-        } else {
-          ElMessage.error('Por favor complete todos los campos correctamente.');
-          return false;
+        if (!valid) {
+          ElMessage.error('Formulario inválido');
+          return;
         }
+
+        emit('guardar', { ...ruleForm, id: props.producto?.id || null });
+        ruleFormRef.value.resetFields();
       });
     };
 
@@ -149,12 +128,12 @@ export default {
   background-color: #fff;
   border-radius: 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  font-family: 'Roboto', sans-serif;
 }
 .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 20px;
 }
 </style>
+

@@ -7,6 +7,7 @@
         :titulo="'GESTIÓN DE USUARIOS'" 
         :tituloboton="'Registrar nuevo usuario'" 
         :abrir="abrirFormulario" 
+        @cancelar="cerrarFormulario"
       />
 
       <!-- Formulario para gestión de usuario -->
@@ -22,6 +23,9 @@
           <el-table-column prop="nombre_usuario" label="Nombre" width="180" />
           <el-table-column prop="identificacion" label="Identificación" width="180" />
           <el-table-column prop="usuario" label="Usuario" width="180" />
+          <!-- ✅ NUEVA COLUMNA: ROL -->
+          <el-table-column prop="rol" label="Rol" width="160" />
+
           <el-table-column fixed="right" label="Opciones" min-width="120">
             <template #default="registro">
               <el-button link type="primary" :icon="EditPen" @click="editarFormulario(registro.row.id)" />
@@ -41,22 +45,28 @@ import axios from 'axios';
 import LayoutMain from '../../components/LayoutMain.vue';
 import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
-import formUsuarios from '../usuarios/componentes/formUsuarios.vue'; // Asegúrate de que la ruta sea correcta
+import formUsuarios from '../usuarios/componentes/formUsuarios.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const mostrarFormulario = ref(false);
 const usuarios = ref([]);
-const editandoFormulario = ref(false); // Para controlar el estado de edición
+const editandoFormulario = ref(false);
 const usuario = ref({});
 
-// Función para abrir el formulario de registro
+// Abrir formulario para nuevo registro
 const abrirFormulario = () => {
   mostrarFormulario.value = true;
   editandoFormulario.value = false;
-  usuario.value = {}; // Limpia el formulario para nuevo registro
+  usuario.value = {}; // Limpia el formulario
 };
 
-// Función para obtener todos los usuarios
+const cerrarFormulario = () => {
+  mostrarFormulario.value = false;
+  usuario.value = {};
+};
+
+
+// Obtener usuarios del backend
 const getUsuarios = async () => {
   try {
     const response = await axios.get('http://127.0.0.1:8000/api/usuarios');
@@ -70,7 +80,7 @@ const getUsuarios = async () => {
   }
 };
 
-// Función para eliminar un usuario
+// Eliminar usuario
 const eliminarFormulario = (id) => {
   ElMessageBox.confirm(
     `¿Está seguro de eliminar el usuario?`, 
@@ -95,7 +105,7 @@ const eliminarFormulario = (id) => {
   });
 };
 
-// Función para editar un usuario
+// Editar usuario
 const editarFormulario = async (id) => {
   mostrarFormulario.value = true;
   editandoFormulario.value = true;
@@ -108,13 +118,18 @@ const editarFormulario = async (id) => {
   }
 };
 
-// Obtener los usuarios cuando se monta el componente
+// Llamar al cargar
 onMounted(() => {
   getUsuarios();
 });
+
+// Callback de guardado desde el formulario hijo
+const guardarUsuario = () => {
+  getUsuarios();
+  mostrarFormulario.value = false;
+};
 </script>
 
 <style scoped>
-/* Estilos de la tabla */
+/* Estilos personalizados aquí si deseas */
 </style>
-
