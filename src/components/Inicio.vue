@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <el-card class="login-card">
-      <h2 class="login-title">Iniciar sesión</h2>
+      <h2 class="login-title">INICIO A VCC ENLACE HUMANO</h2>
       <el-form :model="form" ref="formRef" label-position="top" class="login-form" @submit.prevent="login">
         <el-form-item label="Usuario" :rules="usernameRules" required>
           <el-input
