@@ -56,6 +56,10 @@ export default {
   this.$refs.formRef.validate(async (valid) => {
     if (valid) {
       try {
+
+
+        console.log('URL del backend:', import.meta.env.VITE_API_URL);
+
         // Enviar las credenciales al backend para autenticar al usuario
        const response = await axios.post(`${import.meta.env.VITE_API_URL}/login`, {
 
