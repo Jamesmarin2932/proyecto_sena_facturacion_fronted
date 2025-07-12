@@ -57,7 +57,8 @@ export default {
     if (valid) {
       try {
         // Enviar las credenciales al backend para autenticar al usuario
-        const response = await axios.post('http://localhost:8000/api/login', {
+       const response = await axios.post(`${import.meta.env.VITE_API_URL}/login`, {
+
           usuario: this.form.username,
           password: this.form.password,
         });
