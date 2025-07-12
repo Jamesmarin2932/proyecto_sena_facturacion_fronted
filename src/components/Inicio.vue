@@ -1,9 +1,9 @@
 <template>
   <div class="login-container">
     <el-card class="login-card">
-      <h2 class="login-title">INICIO A VCC ENLACE HUMANO</h2>
-      <el-form :model="form" ref="formRef" label-position="top" class="login-form" @submit.prevent="login">
-        <el-form-item label="Usuario" :rules="usernameRules" required>
+      <h2 class="login-title">Iniciar sesión</h2>
+      <el-form :model="form" ref="formRef" label-position="top" class="login-form">
+        <el-form-item label="Usuario" :rules="usernameRules" prop="username" required>
           <el-input
             v-model="form.username"
             placeholder="Introduce tu nombre de usuario"
@@ -11,7 +11,7 @@
           ></el-input>
         </el-form-item>
 
-        <el-form-item label="Contraseña" :rules="passwordRules" required>
+        <el-form-item label="Contraseña" :rules="passwordRules" prop="password" required>
           <el-input
             v-model="form.password"
             placeholder="Introduce tu contraseña"
@@ -36,10 +36,9 @@ export default {
   data() {
     return {
       form: {
-        username: '', // El campo para el nombre de usuario
-        password: '', // El campo para la contraseña
+        username: '',
+        password: '',
       },
-      // Reglas de validación para los campos
       usernameRules: [
         { required: true, message: 'Por favor ingresa tu nombre de usuario', trigger: 'blur' },
         { min: 3, message: 'El nombre de usuario debe tener al menos 3 caracteres', trigger: 'blur' },
@@ -52,45 +51,34 @@ export default {
   },
   methods: {
     async login() {
-  // Validamos el formulario antes de proceder
-  this.$refs.formRef.validate(async (valid) => {
-    if (valid) {
       try {
+        const valid = await this.$refs.formRef.validate();
+        if (!valid) {
+          ElMessage.warning('Por favor, completa los campos correctamente');
+          return;
+        }
 
-
-        console.log('URL del backend:', import.meta.env.VITE_API_URL);
-
-        // Enviar las credenciales al backend para autenticar al usuario
-       const response = await axios.post(`${import.meta.env.VITE_API_URL}/login`, {
-
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/login`, {
           usuario: this.form.username,
           password: this.form.password,
         });
 
-        // Verifica la respuesta de la API
-        console.log(response.data); // Agrega esto para ver lo que se recibe
+        console.log('Respuesta del backend:', response.data);
 
-        // Si el inicio de sesión es exitoso
         if (response.data.token && response.data.username) {
-          // Guardar el token de acceso y el nombre de usuario en el almacenamiento local
           localStorage.setItem('token', response.data.token);
-          localStorage.setItem('username', response.data.username); // Guarda el nombre de usuario
-
-          // Mensaje de éxito
+          localStorage.setItem('username', response.data.username);
           ElMessage.success('Inicio de sesión exitoso');
-          // Redirigir al usuario a la página principal
           this.$router.push({ name: 'home' });
+        } else {
+          ElMessage.error('Credenciales inválidas');
         }
+
       } catch (error) {
-        // Si las credenciales son incorrectas o hay un error en la solicitud
-        ElMessage.error('Credenciales incorrectas o hubo un error');
+        console.error('Error al iniciar sesión:', error);
+        ElMessage.error('Error al iniciar sesión. Verifica tus datos o intenta más tarde.');
       }
-    } else {
-      // Si no es válido, mostramos un mensaje de advertencia
-      ElMessage.warning('Por favor, completa los campos correctamente');
-    }
-  });
-}
+    },
   },
 };
 </script>
@@ -120,19 +108,5 @@ export default {
 .login-form {
   margin-top: 20px;
 }
-
-.signup-link {
-  text-align: center;
-  font-size: 0.9rem;
-  margin-top: 1rem;
-}
-
-.signup-link a {
-  color: #409eff;
-  text-decoration: none;
-}
-
-.signup-link a:hover {
-  text-decoration: underline;
-}
 </style>
+
