@@ -1,112 +1,178 @@
 <template>
-  <div class="login-container">
-    <el-card class="login-card">
-      <h2 class="login-title">Iniciar sesión</h2>
-      <el-form :model="form" ref="formRef" label-position="top" class="login-form">
-        <el-form-item label="Usuario" :rules="usernameRules" prop="username" required>
-          <el-input
-            v-model="form.username"
-            placeholder="Introduce tu nombre de usuario"
-            prefix-icon="el-icon-user"
-          ></el-input>
-        </el-form-item>
+  <div class="main-container">
+    <div class="login-box">
+      <!-- LADO IZQUIERDO: IMAGEN -->
+      <div class="left-side"></div>
 
-        <el-form-item label="Contraseña" :rules="passwordRules" prop="password" required>
-          <el-input
-            v-model="form.password"
-            placeholder="Introduce tu contraseña"
-            type="password"
-            prefix-icon="el-icon-lock"
-          ></el-input>
-        </el-form-item>
+      <!-- LADO DERECHO: FORMULARIO -->
+      <div class="right-side">
+        <el-card class="login-card">
+          <h2 class="login-title">Iniciar sesión</h2>
 
-        <el-form-item>
-          <el-button type="primary" block @click="login">Iniciar sesión</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+          <el-form :model="form" ref="formRef" @submit.prevent="login" class="login-form">
+            <el-form-item prop="username" :rules="usernameRules">
+              <el-input
+                v-model="form.username"
+                placeholder="Usuario"
+                prefix-icon="el-icon-user"
+                size="large"
+                class="input-with-icon"
+              />
+            </el-form-item>
+
+            <el-form-item prop="password" :rules="passwordRules">
+              <el-input
+                v-model="form.password"
+                placeholder="Contraseña"
+                prefix-icon="el-icon-lock"
+                show-password
+                size="large"
+                class="input-with-icon"
+              />
+            </el-form-item>
+
+            <el-button type="primary" class="login-button" size="large" @click="login" block>
+              Iniciar sesión
+            </el-button>
+          </el-form>
+        </el-card>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>Software desarrollado por James Marín</p>
+    </footer>
   </div>
 </template>
 
-<script>
-import axios from 'axios';
-import { ElMessage } from 'element-plus';
+<script setup>
+import { reactive, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import axios from 'axios'
+import router from '@/router'
 
-export default {
-  data() {
-    return {
-      form: {
-        username: '',
-        password: '',
-      },
-      usernameRules: [
-        { required: true, message: 'Por favor ingresa tu nombre de usuario', trigger: 'blur' },
-        { min: 3, message: 'El nombre de usuario debe tener al menos 3 caracteres', trigger: 'blur' },
-      ],
-      passwordRules: [
-        { required: true, message: 'Por favor ingresa tu contraseña', trigger: 'blur' },
-        { min: 6, message: 'La contraseña debe tener al menos 6 caracteres', trigger: 'blur' },
-      ],
-    };
-  },
-  methods: {
-    async login() {
-      try {
-        const valid = await this.$refs.formRef.validate();
-        if (!valid) {
-          ElMessage.warning('Por favor, completa los campos correctamente');
-          return;
-        }
+const formRef = ref(null)
 
-        const response = await axios.post(`${import.meta.env.VITE_API_URL}/login`, {
-          usuario: this.form.username,
-          password: this.form.password,
-        });
+const form = reactive({
+  username: '',
+  password: '',
+})
 
-        console.log('Respuesta del backend:', response.data);
+const usernameRules = [{ required: true, message: 'Ingrese el usuario', trigger: 'blur' }]
+const passwordRules = [{ required: true, message: 'Ingrese la contraseña', trigger: 'blur' }]
 
-        if (response.data.token && response.data.username) {
-          localStorage.setItem('token', response.data.token);
-          localStorage.setItem('username', response.data.username);
-          ElMessage.success('Inicio de sesión exitoso');
-          this.$router.push({ name: 'home' });
-        } else {
-          ElMessage.error('Credenciales inválidas');
-        }
+const login = async () => {
+  try {
+    await formRef.value.validate()
+    const response = await axios.post('/api/login', form)
 
-      } catch (error) {
-        console.error('Error al iniciar sesión:', error);
-        ElMessage.error('Error al iniciar sesión. Verifica tus datos o intenta más tarde.');
-      }
-    },
-  },
-};
+    localStorage.setItem('token', response.data.token)
+    localStorage.setItem('user', JSON.stringify(response.data.user))
+
+    ElMessage.success('Inicio de sesión exitoso')
+    router.push('/dashboard')
+  } catch (error) {
+    ElMessage.error('Credenciales incorrectas')
+  }
+}
 </script>
 
 <style scoped>
-.login-container {
+/* CONTENEDOR PRINCIPAL */
+.main-container {
+  background-color: #f4f4f4;
+  min-height: 100vh;
+}
+
+/* ESTRUCTURA PRINCIPAL */
+.login-box {
+  display: flex;
+  height: 100vh;
+}
+
+/* IMAGEN IZQUIERDA */
+.left-side {
+  flex: 1;
+  background: url('/public/imagenes/MARALOGO1.PNG') no-repeat center center;
+  background-size: cover;
+}
+
+/* FORMULARIO DERECHO */
+.right-side {
+  flex: 1;
+  background-color: white;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background-color: #cecaca;
 }
 
+/* CARD DE LOGIN */
 .login-card {
   width: 100%;
   max-width: 400px;
+  border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
   padding: 2rem;
+  animation: fadeIn 0.5s ease-in;
 }
 
+/* TÍTULO */
 .login-title {
+  font-size: 1.8rem;
   text-align: center;
-  font-size: 2rem;
-  margin-bottom: 2rem;
-  color: #333;
+  margin-bottom: 1.5rem;
+  color: #1d3557;
 }
 
-.login-form {
-  margin-top: 20px;
+/* INPUTS CON ÍCONO */
+.input-with-icon ::v-deep(.el-input__inner) {
+  border-radius: 8px;
+  padding-left: 40px;
+  height: 45px;
+}
+
+/* BOTÓN LOGIN */
+.login-button {
+  background-color: #1d3557;
+  font-weight: bold;
+  margin-top: 1rem;
+}
+.login-button:hover {
+  background-color: #16324f;
+}
+
+/* FOOTER */
+.footer {
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+/* ANIMACIÓN DE ENTRADA */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .login-box {
+    flex-direction: column;
+  }
+
+  .left-side {
+    height: 200px;
+  }
+
+  .right-side {
+    padding: 2rem 1rem;
+  }
 }
 </style>
-
