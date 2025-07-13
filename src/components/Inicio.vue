@@ -1,42 +1,39 @@
 <template>
   <div class="main-container">
     <div class="login-box">
-      <!-- IZQUIERDA: MARA y logo -->
-      <div class="left-side">
-        <h1 class="brand-title">MARA</h1>
-        <div class="brand-image-placeholder">
-          <!-- Aquí puedes poner tu logo -->
-          LOGO
-        </div>
-      </div>
+      <!-- LADO IZQUIERDO: IMAGEN -->
+      <div class="left-side"></div>
 
-      <!-- DERECHA: Login -->
+      <!-- LADO DERECHO: FORMULARIO -->
       <div class="right-side">
         <el-card class="login-card">
           <h2 class="login-title">Iniciar sesión</h2>
-          <el-form :model="form" ref="formRef" label-position="top" class="login-form" @submit.prevent="login">
-            <el-form-item label="Usuario" :rules="usernameRules" required>
+
+          <el-form :model="form" ref="formRef" @submit.prevent="login" class="login-form">
+            <el-form-item prop="username" :rules="usernameRules">
               <el-input
                 v-model="form.username"
-                placeholder="Introduce tu nombre de usuario"
+                placeholder="Usuario"
                 prefix-icon="el-icon-user"
+                size="large"
+                class="input-with-icon"
               />
             </el-form-item>
 
-            <el-form-item label="Contraseña" :rules="passwordRules" required>
+            <el-form-item prop="password" :rules="passwordRules">
               <el-input
                 v-model="form.password"
-                placeholder="Introduce tu contraseña"
-                type="password"
+                placeholder="Contraseña"
                 prefix-icon="el-icon-lock"
+                show-password
+                size="large"
+                class="input-with-icon"
               />
             </el-form-item>
 
-            <el-form-item>
-              <el-button type="primary" class="login-button" block @click="login">
-                Iniciar sesión
-              </el-button>
-            </el-form-item>
+            <el-button type="primary" class="login-button" size="large" @click="login" block>
+              Iniciar sesión
+            </el-button>
           </el-form>
         </el-card>
       </div>
@@ -48,156 +45,111 @@
   </div>
 </template>
 
-<script>
-import axios from 'axios';
-import { ElMessage } from 'element-plus';
+<script setup>
+import { reactive, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import axios from 'axios'
+import router from '@/router'
 
-export default {
-  data() {
-    return {
-      form: {
-        username: '',
-        password: '',
-      },
-      usernameRules: [
-        { required: true, message: 'Por favor ingresa tu nombre de usuario', trigger: 'blur' },
-        { min: 3, message: 'Debe tener al menos 3 caracteres', trigger: 'blur' },
-      ],
-      passwordRules: [
-        { required: true, message: 'Por favor ingresa tu contraseña', trigger: 'blur' },
-        { min: 6, message: 'Debe tener al menos 6 caracteres', trigger: 'blur' },
-      ],
-    };
-  },
-  methods: {
-    async login() {
-      this.$refs.formRef.validate(async (valid) => {
-        if (valid) {
-          try {
-            const response = await axios.post('http://localhost:8000/api/login', {
-              usuario: this.form.username,
-              password: this.form.password,
-            });
+const formRef = ref(null)
 
-            if (response.data.token && response.data.username) {
-              localStorage.setItem('token', response.data.token);
-              localStorage.setItem('username', response.data.username);
+const form = reactive({
+  username: '',
+  password: '',
+})
 
-              ElMessage.success('Inicio de sesión exitoso');
-              this.$router.push({ name: 'home' });
-            }
-          } catch (error) {
-            ElMessage.error('Credenciales incorrectas o hubo un error');
-          }
-        } else {
-          ElMessage.warning('Por favor, completa los campos correctamente');
-        }
-      });
-    },
-  },
-};
+const usernameRules = [{ required: true, message: 'Ingrese el usuario', trigger: 'blur' }]
+const passwordRules = [{ required: true, message: 'Ingrese la contraseña', trigger: 'blur' }]
+
+const login = async () => {
+  try {
+    await formRef.value.validate()
+    const response = await axios.post('/api/login', form)
+
+    localStorage.setItem('token', response.data.token)
+    localStorage.setItem('user', JSON.stringify(response.data.user))
+
+    ElMessage.success('Inicio de sesión exitoso')
+    router.push('/dashboard')
+  } catch (error) {
+    ElMessage.error('Credenciales incorrectas')
+  }
+}
 </script>
 
 <style scoped>
-/* Fondo general */
+/* CONTENEDOR PRINCIPAL */
 .main-container {
-  background-color: #0d1b2a; /* Azul oscuro principal */
+  background-color: #f4f4f4;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  padding: 2rem;
-  box-sizing: border-box;
 }
 
-/* Caja principal */
+/* ESTRUCTURA PRINCIPAL */
 .login-box {
   display: flex;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
-  max-width: 900px;
-  width: 100%;
-  min-height: 400px;
+  height: 100vh;
 }
 
-/* IZQUIERDA: MARA y logo */
+/* IMAGEN IZQUIERDA */
 .left-side {
   flex: 1;
-  background-color: #274c77; /* Azul petróleo para contraste */
-  color: white;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
+  background: url('/public/imagenes/MARALOGO1.PNG') no-repeat center center;
+  background-size: cover;
 }
 
-.brand-title {
-  font-size: 3rem;
-  font-weight: bold;
-  margin-bottom: 2rem;
-  animation: fadeInUp 1s ease;
-}
-
-.brand-image-placeholder {
-  width: 140px;
-  height: 140px;
-  border: 2px dashed #ffffff66;
-  border-radius: 12px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #ffffff99;
-  font-size: 0.9rem;
-  animation: fadeIn 1.5s ease;
-}
-
-/* DERECHA: Login */
+/* FORMULARIO DERECHO */
 .right-side {
   flex: 1;
   background-color: white;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 2rem;
 }
 
+/* CARD DE LOGIN */
 .login-card {
   width: 100%;
-  max-width: 320px;
+  max-width: 400px;
   border-radius: 12px;
-  box-shadow: none;
-  padding: 0;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+  padding: 2rem;
+  animation: fadeIn 0.5s ease-in;
 }
 
+/* TÍTULO */
 .login-title {
+  font-size: 1.8rem;
   text-align: center;
-  font-size: 1.4rem;
-  margin-bottom: 1rem;
-  color: #2d2d2d;
+  margin-bottom: 1.5rem;
+  color: #1d3557;
 }
 
+/* INPUTS CON ÍCONO */
+.input-with-icon ::v-deep(.el-input__inner) {
+  border-radius: 8px;
+  padding-left: 40px;
+  height: 45px;
+}
+
+/* BOTÓN LOGIN */
 .login-button {
   background-color: #1d3557;
-  border: none;
   font-weight: bold;
+  margin-top: 1rem;
 }
 .login-button:hover {
   background-color: #16324f;
 }
 
-/* Footer */
+/* FOOTER */
 .footer {
-  color: #ffffffaa;
   text-align: center;
-  margin-top: 2rem;
-  font-size: 0.9rem;
+  padding: 1rem;
+  font-size: 0.85rem;
+  color: #aaa;
 }
 
-/* Animaciones */
+/* ANIMACIÓN DE ENTRADA */
 @keyframes fadeIn {
   0% {
     opacity: 0;
@@ -209,14 +161,18 @@ export default {
   }
 }
 
-@keyframes fadeInUp {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .login-box {
+    flex-direction: column;
   }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
+
+  .left-side {
+    height: 200px;
+  }
+
+  .right-side {
+    padding: 2rem 1rem;
   }
 }
 </style>
