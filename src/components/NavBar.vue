@@ -12,7 +12,7 @@
     <el-menu-item index="0" class="logo-item">
       <img
         class="logo-img"
-        src="../components/imagenes/Diseño sin título.jpg"
+        src="/public/imagenes/MARALOGO1.png"
         alt="logo"
       />
     </el-menu-item>

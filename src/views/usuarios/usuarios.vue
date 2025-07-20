@@ -124,10 +124,23 @@ onMounted(() => {
 });
 
 // Callback de guardado desde el formulario hijo
-const guardarUsuario = () => {
-  getUsuarios();
-  mostrarFormulario.value = false;
+const guardarUsuario = async (payload) => {
+  console.log('📤 Enviando al backend:', payload);
+
+  try {
+    const response = await axios.post('http://127.0.0.1:8000/api/users/register', payload);
+    console.log('✅ Usuario registrado:', response.data);
+
+    ElMessage.success('Usuario registrado con éxito');
+    getUsuarios(); // refresca la tabla
+    mostrarFormulario.value = false;
+    usuario.value = {}; // limpia el modelo
+  } catch (error) {
+    console.error('❌ Error al registrar usuario:', error.response?.data || error);
+    ElMessage.error('Error al registrar usuario');
+  }
 };
+
 </script>
 
 <style scoped>

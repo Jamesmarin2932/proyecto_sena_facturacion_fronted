@@ -16,13 +16,20 @@
       <el-input v-model="usuarioLocal.password" type="password" />
     </el-form-item>
 
-    <el-form-item label="Rol">
-      <el-select v-model="usuarioLocal.rol" placeholder="Seleccione un rol">
-        <el-option label="Administrador" value="admin" />
-        <el-option label="Usuario" value="usuario" />
-        <!-- Agrega más roles si los tienes -->
-      </el-select>
-    </el-form-item>
+    <el-form-item label="Confirmar Contraseña" v-if="!esEdicion">
+  <el-input v-model="usuarioLocal.password_confirmation" type="password" />
+</el-form-item>
+
+
+   <!--
+<el-form-item label="Rol">
+  <el-select v-model="usuarioLocal.rol" placeholder="Seleccione un rol">
+    <el-option label="Administrador" value="admin" />
+    <el-option label="Usuario" value="usuario" />
+  </el-select>
+</el-form-item>
+-->
+
 
     <!-- Botones -->
     <el-form-item>
@@ -59,7 +66,17 @@ watch(
 
 // Guardar usuario
 const guardar = () => {
-  emit('guardar', usuarioLocal.value);
+  const payload = {
+    nombre_usuario: usuarioLocal.value.nombre_usuario,
+    usuario: usuarioLocal.value.usuario,
+    identificacion: usuarioLocal.value.identificacion,
+    password: usuarioLocal.value.password,
+    password_confirmation: usuarioLocal.value.password_confirmation,
+  };
+
+  console.log('📦 Enviando datos desde el hijo:', payload);
+
+  emit('guardar', payload);
 };
 
 // Cancelar y cerrar el formulario
