@@ -59,6 +59,7 @@ import LayoutMain from '../../components/LayoutMain.vue';
 import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
 import formClientes from '../clientes/Componentes/formClientes.vue';
+import api from '@/api'; // Asegúrate de que apunte a src/api.js
 
 const mostrarFormulario = ref(false);
 const editandoFormulario = ref(false);
@@ -119,7 +120,8 @@ const actualizarCliente = async (clienteActualizado) => {
       }
     } else {
       // Crear nuevo cliente
-      const response = await axios.post('http://127.0.0.1:8000/api/dato_clientes/save', clienteActualizado);
+      const response = await api.post('/dato_clientes/save', clienteActualizado);
+
       if (response.status === 200 || response.status === 201) {
         ElMessage({ type: 'success', message: 'Tercero creado con éxito' });
         getClientes();
