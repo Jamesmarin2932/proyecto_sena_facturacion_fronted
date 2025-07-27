@@ -115,6 +115,7 @@ import { reactive, ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
+import api from '@/api';
 
 const emit = defineEmits(['asientoGuardado'])
 
