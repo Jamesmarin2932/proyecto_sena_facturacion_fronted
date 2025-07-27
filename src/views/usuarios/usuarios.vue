@@ -123,12 +123,14 @@ onMounted(() => {
   getUsuarios();
 });
 
-// Callback de guardado desde el formulario hijo
+
+//guardar usuario
+
 const guardarUsuario = async (payload) => {
   console.log('📤 Enviando al backend:', payload);
 
   try {
-    axios.post(`${import.meta.env.VITE_API_URL}/users/register`, payload); // ✅
+    const response = await axios.post(`${import.meta.env.VITE_API_URL}/users/register`, payload); // ✅
 
     console.log('✅ Usuario registrado:', response.data);
 
@@ -141,6 +143,8 @@ const guardarUsuario = async (payload) => {
     ElMessage.error('Error al registrar usuario');
   }
 };
+
+
 
 </script>
 
