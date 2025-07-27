@@ -168,164 +168,130 @@
 
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { EditPen, Delete } from '@element-plus/icons-vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ref, reactive, watch, onMounted } from 'vue';
+import axios from 'axios';
+import { CountrySelect, RegionSelect } from 'vue3-country-region-select';
+import { ElMessage } from 'element-plus';
 
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
 
-import LayoutMain from '../../components/LayoutMain.vue';
-import headerButton from '../../components/headerButton.vue';
-import formulario from '../../components/formulario.vue';
-import formClientes from '../clientes/Componentes/formClientes.vue';
+const props = defineProps({
+  cliente: Object
+});
+const emit = defineEmits(['guardar', 'cerrarFormulario']);
 
-import api from '@/api'; // ✅ Este es el cliente Axios con baseURL a Render
+const formRef = ref(null);
+const formSize = ref('default');
 
-const mostrarFormulario = ref(false);
-const editandoFormulario = ref(false);
-const cliente = ref({});
-const clientes = ref([]);
+const form = reactive({
+  tipo_identificacion: '',
+  numero_identificacion: '',
+  nombres: '',
+  apellidos: '',
+  razon_social: '',
+  tipo_persona: 'natural',
+  tipo_tercero: 'cliente',
+  direccion: '',
+  departamento: '',
+  ciudad: '',
+  codigo_postal: '',
+  pais: 'Colombia',
+  telefono: '',
+  correo: '',
+  actividad_economica: '',
+  observaciones: '',
+  cuenta_gasto_costo: '' // 👈 nuevo campo
+});
 
-// Abrir formulario nuevo cliente
-const abrirFormulario = () => {
-  mostrarFormulario.value = true;
-  editandoFormulario.value = false;
-  cliente.value = {};
-};
 
-// Cerrar formulario
-const cerrarFormularioHandler = () => {
-  mostrarFormulario.value = false;
-  cliente.value = {};
-};
-
-// ✅ Obtener clientes
-const getClientes = async () => {
-  try {
-    const response = await api.get('/dato_clientes/getdata');
-    clientes.value = response.data.data.reverse();
-  } catch (error) {
-    console.error('Error al obtener clientes:', error);
-    ElMessage({ type: 'error', message: 'Error al obtener los clientes' });
+watch(() => props.cliente, (nuevo) => {
+  if (nuevo && Object.keys(nuevo).length) {
+    Object.assign(form, { ...nuevo });
+  } else {
+    Object.keys(form).forEach(key => form[key] = '');
   }
+}, { immediate: true });
+
+const rules = {
+  nombres: [{ required: true, message: 'Ingrese nombres', trigger: 'blur' }],
+  apellidos: [{ required: true, message: 'Ingrese apellidos', trigger: 'blur' }],
+  tipo_identificacion: [{ required: true, message: 'Seleccione tipo de ID', trigger: 'change' }],
+  numero_identificacion: [{ required: true, message: 'Ingrese número de identificación', trigger: 'blur' }],
+  telefono: [{ required: true, message: 'Ingrese teléfono', trigger: 'blur' }],
+  correo: [
+    { required: true, message: 'Ingrese correo', trigger: 'blur' },
+    { type: 'email', message: 'Correo inválido', trigger: 'blur' },
+  ],
 };
 
-// ✅ Editar cliente
-const editarFormulario = async (id) => {
-  mostrarFormulario.value = true;
-  editandoFormulario.value = true;
+const ciudades = ref([]);
+const countryCodes = {
+  Colombia: 'co',
+  México: 'mx',
+  Argentina: 'ar',
+  Perú: 'pe',
+  Chile: 'cl',
+  Ecuador: 'ec',
+  Venezuela: 've',
+  Panamá: 'pa',
+  Uruguay: 'uy',
+};
+
+watch([() => form.departamento, () => form.pais], async ([dep, pais]) => {
+  ciudades.value = [];
+  form.ciudad = '';
+  form.codigo_postal = '';
+  const code = countryCodes[pais];
+  if (!dep || !code) return;
 
   try {
-    const response = await api.get(`/dato_clientes/getdataById/${id}`);
-    cliente.value = { ...response.data.data };
-  } catch (error) {
-    console.error('Error al obtener cliente:', error);
-    ElMessage({ type: 'error', message: 'Hubo un error al cargar los datos del cliente' });
-  }
-};
+    const res = await axios.get('https://api.geoapify.com/v1/geocode/search', {
+      params: {
+        text: dep,
+        filter: `countrycode:${code}`,
+        lang: 'es',
+        limit: 20,
+        apiKey: 'c3f58dda1e8b4870b44697ee0aea78f1',
+      },
+    });
 
-// ✅ Crear o actualizar cliente
-const actualizarCliente = async (clienteActualizado) => {
+    const features = res.data?.features || [];
+    ciudades.value = [...new Set(features.map(f =>
+      f.properties.city || f.properties.county
+    ).filter(Boolean))];
+  } catch (error) {
+    console.warn('Error al obtener ciudades:', error);
+    ciudades.value = [];
+  }
+});
+
+watch(() => form.ciudad, async (ciudad) => {
+  const code = countryCodes[form.pais];
+  if (!ciudad || !code) return;
+
   try {
-    if (editandoFormulario.value) {
-      const response = await api.put(`/dato_clientes/update/${clienteActualizado.id}`, clienteActualizado);
-      if (response.status === 200) {
-        ElMessage({ type: 'success', message: 'Cliente actualizado con éxito' });
-        getClientes();
-        cerrarFormularioHandler();
-      }
-    } else {
-      const response = await api.post('/dato_clientes/save', clienteActualizado);
-      if (response.status === 200 || response.status === 201) {
-        ElMessage({ type: 'success', message: 'Tercero creado con éxito' });
-        getClientes();
-        cerrarFormularioHandler();
-      } else {
-        ElMessage({ type: 'error', message: 'Error al crear tercero' });
-      }
-    }
-  } catch (error) {
-    console.error('Error al guardar el cliente:', error);
-    ElMessage({ type: 'error', message: 'Hubo un error al guardar el cliente' });
-  }
-};
+    const res = await axios.get('https://api.geoapify.com/v1/geocode/search', {
+      params: {
+        text: ciudad,
+        filter: `countrycode:${code}`,
+        lang: 'es',
+        limit: 1,
+        apiKey: 'c3f58dda1e8b4870b44697ee0aea78f1',
+      },
+    });
 
-// ✅ Eliminar cliente
-const eliminarFormulario = (id) => {
-  ElMessageBox.confirm(
-    '¿Está seguro de eliminar el cliente?',
-    'ELIMINAR REGISTRO',
-    {
-      confirmButtonText: 'Sí',
-      cancelButtonText: 'Cancelar',
-      type: 'error',
-    }
-  )
-  .then(async () => {
-    try {
-      const response = await api.delete(`/dato_clientes/delete/${id}`);
-      if (response.status === 200) {
-        ElMessage({ type: 'success', message: 'Cliente eliminado con éxito' });
-        clientes.value = clientes.value.filter(c => c.id !== id);
-      } else {
-        ElMessage({ type: 'error', message: 'La eliminación no fue exitosa' });
-      }
-    } catch (error) {
-      console.error('Error al eliminar el cliente:', error);
-      ElMessage({ type: 'error', message: 'Hubo un error al eliminar el cliente' });
-    }
-  })
-  .catch(() => {
-    ElMessage({ type: 'info', message: 'Solicitud cancelada' });
+    const props = res.data?.features?.[0]?.properties;
+    form.codigo_postal = props?.postcode || '';
+  } catch (error) {
+    console.warn('Error al obtener código postal:', error);
+  }
+});
+
+const guardarCliente = () => {
+  formRef.value.validate((valid) => {
+    if (!valid) return;
+    emit('guardar', { ...form });
   });
 };
-
-// Exportar Excel
-const exportarExcel = () => {
-  if (!clientes.value.length) {
-    ElMessage({ type: 'warning', message: 'No hay datos para exportar' });
-    return;
-  }
-
-  const datosParaExportar = clientes.value.map(cliente => ({
-    "Tipo de identificación": cliente.tipo_identificacion,
-    "Número": cliente.numero_identificacion,
-    "Nombres": cliente.nombres,
-    "Apellidos": cliente.apellidos,
-    "Razon social": cliente.razon_social,
-    "Tipo persona": cliente.tipo_persona,
-    "Pais": cliente.pais,
-    "Departamento": cliente.departamento,
-    "Dirección": cliente.direccion,
-    "Ciudad": cliente.ciudad,
-    "Código postal": cliente.codigo_postal,
-    "Teléfono": cliente.telefono,
-    "Correo": cliente.correo,
-    "Tipo de tercero": cliente.tipo_tercero,
-    "Cuenta gasto": cliente.cuenta_gasto,
-    "Actividad económica": cliente.actividad_economica,
-    "Responsable IVA": cliente.responsable_iva ? 'Sí' : 'No',
-    "Observaciones": cliente.observaciones,
-  }));
-
-  const worksheet = XLSX.utils.json_to_sheet(datosParaExportar);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
-  const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-
-  try {
-    saveAs(new Blob([wbout], { type: "application/octet-stream" }), "clientes.xlsx");
-  } catch (e) {
-    console.error(e);
-    ElMessage({ type: "error", message: "Error al exportar a Excel" });
-  }
-};
-
-onMounted(() => {
-  getClientes();
-});
 </script>
-
 
 

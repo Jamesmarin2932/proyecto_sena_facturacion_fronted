@@ -48,7 +48,6 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
 import { EditPen, Delete } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
@@ -59,7 +58,8 @@ import LayoutMain from '../../components/LayoutMain.vue';
 import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
 import formClientes from '../clientes/Componentes/formClientes.vue';
-import api from '@/api'; // Asegúrate de que apunte a src/api.js
+
+import api from '@/api'; // ✅ Este es el cliente Axios con baseURL a Render
 
 const mostrarFormulario = ref(false);
 const editandoFormulario = ref(false);
@@ -73,55 +73,49 @@ const abrirFormulario = () => {
   cliente.value = {};
 };
 
-// Cerrar formulario y limpiar cliente
+// Cerrar formulario
 const cerrarFormularioHandler = () => {
   mostrarFormulario.value = false;
   cliente.value = {};
 };
 
-// Obtener clientes
+// ✅ Obtener clientes
 const getClientes = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/dato_clientes/getdata');
+    const response = await api.get('/dato_clientes/getdata');
     clientes.value = response.data.data.reverse();
-
   } catch (error) {
     console.error('Error al obtener clientes:', error);
+    ElMessage({ type: 'error', message: 'Error al obtener los clientes' });
   }
 };
 
-// Editar cliente
+// ✅ Editar cliente
 const editarFormulario = async (id) => {
   mostrarFormulario.value = true;
   editandoFormulario.value = true;
 
   try {
-    const response = await axios.get(`http://127.0.0.1:8000/api/dato_clientes/getdataById/${id}`);
+    const response = await api.get(`/dato_clientes/getdataById/${id}`);
     cliente.value = { ...response.data.data };
   } catch (error) {
     console.error('Error al obtener cliente:', error);
-    ElMessage({
-      type: 'error',
-      message: 'Hubo un error al cargar los datos del cliente',
-    });
+    ElMessage({ type: 'error', message: 'Hubo un error al cargar los datos del cliente' });
   }
 };
 
-// Actualizar cliente (crear o editar)
+// ✅ Crear o actualizar cliente
 const actualizarCliente = async (clienteActualizado) => {
   try {
     if (editandoFormulario.value) {
-      // Actualizar cliente existente
-      const response = await axios.put(`http://127.0.0.1:8000/api/dato_clientes/update/${clienteActualizado.id}`, clienteActualizado);
+      const response = await api.put(`/dato_clientes/update/${clienteActualizado.id}`, clienteActualizado);
       if (response.status === 200) {
         ElMessage({ type: 'success', message: 'Cliente actualizado con éxito' });
         getClientes();
         cerrarFormularioHandler();
       }
     } else {
-      // Crear nuevo cliente
       const response = await api.post('/dato_clientes/save', clienteActualizado);
-
       if (response.status === 200 || response.status === 201) {
         ElMessage({ type: 'success', message: 'Tercero creado con éxito' });
         getClientes();
@@ -136,7 +130,7 @@ const actualizarCliente = async (clienteActualizado) => {
   }
 };
 
-// Eliminar cliente
+// ✅ Eliminar cliente
 const eliminarFormulario = (id) => {
   ElMessageBox.confirm(
     '¿Está seguro de eliminar el cliente?',
@@ -149,7 +143,7 @@ const eliminarFormulario = (id) => {
   )
   .then(async () => {
     try {
-      const response = await axios.delete(`http://127.0.0.1:8000/api/dato_clientes/delete/${id}`);
+      const response = await api.delete(`/dato_clientes/delete/${id}`);
       if (response.status === 200) {
         ElMessage({ type: 'success', message: 'Cliente eliminado con éxito' });
         clientes.value = clientes.value.filter(c => c.id !== id);
@@ -166,7 +160,7 @@ const eliminarFormulario = (id) => {
   });
 };
 
-// Función para exportar la tabla a Excel
+// Exportar Excel
 const exportarExcel = () => {
   if (!clientes.value.length) {
     ElMessage({ type: 'warning', message: 'No hay datos para exportar' });
@@ -174,27 +168,25 @@ const exportarExcel = () => {
   }
 
   const datosParaExportar = clientes.value.map(cliente => ({
-  "Tipo de identificación": cliente.tipo_identificacion,
-  "Número": cliente.numero_identificacion,
-  "Nombres": cliente.nombres,
-  "Apellidos": cliente.apellidos,
-  "Razon social":cliente.razon_social,
-  "Tipo perosna":cliente.tipo_persona,
-  "Pais":cliente.pais,
-  "Departamento":cliente.departamento,
-  "Dirección": cliente.direccion,
-  "Ciudad": cliente.ciudad,
-  "Codigo postal":cliente.codigo_postal,
-  "Teléfono": cliente.telefono,
-  "Correo": cliente.correo,
-  "Tipo de tercero": cliente.tipo_tercero,
-  "Cuenta gasto":cliente.cuenta_gasto,
-  "Actividad económica": cliente.actividad_economica,
-  "Responsable IVA": cliente.responsable_iva ? 'Sí' : 'No',
-"Observaciones":cliente.observaciones,
-  // Otros campos que tengas
-}));
-
+    "Tipo de identificación": cliente.tipo_identificacion,
+    "Número": cliente.numero_identificacion,
+    "Nombres": cliente.nombres,
+    "Apellidos": cliente.apellidos,
+    "Razon social": cliente.razon_social,
+    "Tipo persona": cliente.tipo_persona,
+    "Pais": cliente.pais,
+    "Departamento": cliente.departamento,
+    "Dirección": cliente.direccion,
+    "Ciudad": cliente.ciudad,
+    "Código postal": cliente.codigo_postal,
+    "Teléfono": cliente.telefono,
+    "Correo": cliente.correo,
+    "Tipo de tercero": cliente.tipo_tercero,
+    "Cuenta gasto": cliente.cuenta_gasto,
+    "Actividad económica": cliente.actividad_economica,
+    "Responsable IVA": cliente.responsable_iva ? 'Sí' : 'No',
+    "Observaciones": cliente.observaciones,
+  }));
 
   const worksheet = XLSX.utils.json_to_sheet(datosParaExportar);
   const workbook = XLSX.utils.book_new();
@@ -213,6 +205,7 @@ onMounted(() => {
   getClientes();
 });
 </script>
+
 <style scoped>
 .titulo-seccion {
   text-align: center;
