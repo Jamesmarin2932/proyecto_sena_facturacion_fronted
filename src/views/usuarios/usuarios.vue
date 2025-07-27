@@ -47,6 +47,7 @@ import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
 import formUsuarios from '../usuarios/componentes/formUsuarios.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import api from '@/api'; // usa la ruta correcta según tu proyecto
 
 const mostrarFormulario = ref(false);
 const usuarios = ref([]);
@@ -127,23 +128,13 @@ onMounted(() => {
 //guardar usuario
 
 const guardarUsuario = async (payload) => {
-  console.log('📤 Enviando al backend:', payload);
-
   try {
-    const response = await axios.post(`${import.meta.env.VITE_API_URL}/users/register`, payload); // ✅
-
+    const response = await api.post('/users/register', payload);
     console.log('✅ Usuario registrado:', response.data);
-
-    ElMessage.success('Usuario registrado con éxito');
-    getUsuarios(); // refresca la tabla
-    mostrarFormulario.value = false;
-    usuario.value = {}; // limpia el modelo
   } catch (error) {
-    console.error('❌ Error al registrar usuario:', error.response?.data || error);
-    ElMessage.error('Error al registrar usuario');
+    console.error('❌ Error:', error.response?.data || error);
   }
 };
-
 
 
 </script>
