@@ -69,7 +69,7 @@ const cerrarFormulario = () => {
 
 // Obtener usuarios del backend
 const getUsuarios = async () => {
-  try { const response = await api.get('/api/usuarios');
+  try { const response = await api.get('/usuarios');
     if (response.data && response.data.users) {
       usuarios.value = response.data.users;
     } else {
