@@ -132,14 +132,19 @@ const filtroCuenta = ref('')
 const datos = ref([])
 const dialogVisible = ref(false)
 
+// Cargar asientos al iniciar
 const cargarAsientos = async () => {
   try {
     const response = await api.get('/asientos')
-    datos.value = response.data.reverse()
+    datos.value = response.data.reverse() // Ordenar descendente
   } catch (error) {
     console.error('Error al cargar los asientos:', error)
   }
 }
+onMounted(() => {
+  cargarAsientos()
+})
+
 // Filtros
 const limpiarFiltros = () => {
   filtroTercero.value = ''
