@@ -70,7 +70,7 @@ const cerrarFormulario = () => {
 // Obtener usuarios del backend
 const getUsuarios = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/usuarios');
+    const response = await api.get('/clientes');
     if (response.data && response.data.users) {
       usuarios.value = response.data.users;
     } else {
