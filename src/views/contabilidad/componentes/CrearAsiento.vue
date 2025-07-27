@@ -191,7 +191,7 @@ const agregarFila = () => {
 
 const buscarTerceros = async (queryString, cb) => {
   try {
-    const res = await axios.get('http://127.0.0.1:8000/api/dato_clientes/getdata')
+    const response = await api.get('/dato_clientes/getdata');
     const clientes = Array.isArray(res.data) ? res.data : res.data.data || []
 
     const resultados = clientes
