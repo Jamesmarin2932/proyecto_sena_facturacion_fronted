@@ -193,7 +193,7 @@ const agregarFila = () => {
 const buscarTerceros = async (queryString, cb) => {
   try {
     const response = await api.get('/dato_clientes/getdata');
-    const clientes = Array.isArray(res.data) ? res.data : res.data.data || []
+    const clientes = Array.isArray(response.data) ? response.data : response.data.data || []
 
     const resultados = clientes
       .filter(c => {
