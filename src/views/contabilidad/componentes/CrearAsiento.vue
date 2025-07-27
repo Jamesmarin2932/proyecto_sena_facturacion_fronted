@@ -141,7 +141,7 @@ const cuentasContables = ref([])
 
 const cargarCuentasContables = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/cuentas-contables')
+     const response = await api.get('/cuentas-contables')
     cuentasContables.value = response.data
   } catch (error) {
     console.error('Error al cargar cuentas contables:', error)
@@ -150,7 +150,7 @@ const cargarCuentasContables = async () => {
 
 const cargarConsecutivo = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/asientos/ultimo-consecutivo')
+    const response = await api.get('/asientos/ultimo-consecutivo')
     form.consecutivo = response.data.consecutivo + 1
   } catch (error) {
     console.error('Error al obtener consecutivo:', error)
@@ -263,7 +263,7 @@ const guardarAsiento = async () => {
       saldo: item.debito - item.credito,
     }))
 
-    await axios.post('http://127.0.0.1:8000/api/asientos', { asientos: payloads })
+     await api.post('/asientos', { asientos: payloads }) // 👈 usando `api`
     ElMessage.success('Asiento guardado correctamente')
     cancelar()
   } catch (error) {
