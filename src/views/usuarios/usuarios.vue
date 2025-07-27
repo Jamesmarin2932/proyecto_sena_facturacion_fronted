@@ -128,7 +128,8 @@ const guardarUsuario = async (payload) => {
   console.log('📤 Enviando al backend:', payload);
 
   try {
-    const response = await axios.post('http://127.0.0.1:8000/api/users/register', payload);
+    axios.post(`${import.meta.env.VITE_API_URL}/users/register`, payload); // ✅
+
     console.log('✅ Usuario registrado:', response.data);
 
     ElMessage.success('Usuario registrado con éxito');
