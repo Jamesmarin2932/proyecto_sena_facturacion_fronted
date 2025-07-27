@@ -123,6 +123,7 @@ import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import api from '@/api';
 
 // Estados
 const filtroTercero = ref('')
@@ -131,19 +132,14 @@ const filtroCuenta = ref('')
 const datos = ref([])
 const dialogVisible = ref(false)
 
-// Cargar asientos al iniciar
 const cargarAsientos = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/asientos')
-    datos.value = response.data.reverse() // Ordenar descendente
+    const response = await api.get('/asientos')
+    datos.value = response.data.reverse()
   } catch (error) {
     console.error('Error al cargar los asientos:', error)
   }
 }
-onMounted(() => {
-  cargarAsientos()
-})
-
 // Filtros
 const limpiarFiltros = () => {
   filtroTercero.value = ''
