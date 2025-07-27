@@ -54,11 +54,8 @@
   <script setup>
 import LayoutMain from '@/components/LayoutMain.vue'
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/api' // ✅ Usamos instancia configurada
 import { ElMessage } from 'element-plus'
-
-// Establece base URL del backend
-const API_BASE = 'http://localhost:8000/api'
 
 const cuentas = ref([])
 const form = ref({ codigo: '', nombre: '' })
@@ -73,7 +70,7 @@ const rules = {
 
 const cargarCuentas = async () => {
   try {
-    const { data } = await axios.get(`${API_BASE}/cuentas`)
+    const { data } = await api.get('/cuentas') // ✅ Cambiado
     cuentas.value = data
   } catch (error) {
     ElMessage.error('Error al cargar las cuentas')
@@ -86,10 +83,10 @@ const guardarCuenta = async () => {
 
     try {
       if (modoEdicion.value) {
-        await axios.put(`${API_BASE}/cuentas/${cuentaEditandoId.value}`, form.value)
+        await api.put(`/cuentas/${cuentaEditandoId.value}`, form.value) // ✅ Cambiado
         ElMessage.success('Cuenta actualizada correctamente')
       } else {
-        await axios.post(`${API_BASE}/cuentas`, form.value)
+        await api.post('/cuentas', form.value) // ✅ Cambiado
         ElMessage.success('Cuenta creada correctamente')
       }
       limpiarFormulario()
@@ -112,7 +109,7 @@ const cancelarEdicion = () => {
 
 const eliminarCuenta = async (id) => {
   try {
-    await axios.delete(`${API_BASE}/cuentas/${id}`)
+    await api.delete(`/cuentas/${id}`) // ✅ Cambiado
     ElMessage.success('Cuenta eliminada')
     cargarCuentas()
   } catch (error) {
@@ -131,5 +128,6 @@ onMounted(() => {
   cargarCuentas()
 })
 </script>
+
 
   
