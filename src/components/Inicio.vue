@@ -74,7 +74,7 @@ const login = async () => {
 
 
     localStorage.setItem('token', response.data.token)
-    localStorage.setItem('user', JSON.stringify(response.data.user))
+    localStorage.setItem('username', response.data.username);
 
     ElMessage.success('Inicio de sesión exitoso')
     router.push('/home')
