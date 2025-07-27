@@ -70,7 +70,8 @@ const passwordRules = [{ required: true, message: 'Ingrese la contraseña', trig
 const login = async () => {
   try {
     await formRef.value.validate()
-    const response = await axios.post(`${import.meta.env.VITE_API_URL}/login`, form)
+    const response = await axios.post(`${import.meta.env.VITE_API_URL}/users/register`, payload);
+
 
 
     localStorage.setItem('token', response.data.token)
