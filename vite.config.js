@@ -6,12 +6,21 @@ import path from 'path'
 export default defineConfig({
   plugins: [vue()],
   build: {
-    outDir: 'dist',  // Salida de la carpeta de producción
+    outDir: 'dist', // Salida de la carpeta de producción
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'), // Esto hace que '@' apunte a la carpeta src
       '@views': path.resolve(__dirname, 'src/views'), // Alias adicional para 'views'
+    },
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000', // URL de tu backend Laravel
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 })

@@ -66,7 +66,7 @@ import { User, Goods, Document, Wallet, Coin, Setting } from '@element-plus/icon
           <span>CONFIGURACIÓN</span>
         </template>
         <el-menu-item index="/usuarios">Crear usuario</el-menu-item>
-        <el-menu-item index="5-2">Cambiar contraseña</el-menu-item>
+        <el-menu-item index="/empresas">Crear empresa</el-menu-item>
       </el-sub-menu>
     </el-menu>
   </div>

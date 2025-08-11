@@ -4,6 +4,7 @@ import 'element-plus/dist/index.css' // Importa los estilos de Element Plus
 import App from './App.vue'
 import router from './router'
 import vueCountryRegionSelect from 'vue3-country-region-select';
+import api from './axios';
 
 
 
@@ -16,6 +17,9 @@ const app = createApp(App)
 app.use(ElementPlus, { locale: es })
 
 app.use(vueCountryRegionSelect);
+
+// Hacer disponible Axios como $api en todos los componentes
+app.config.globalProperties.$api = api;
 
 app.use(router)
 app.mount('#app')

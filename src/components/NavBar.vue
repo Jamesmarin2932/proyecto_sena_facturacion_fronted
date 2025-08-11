@@ -10,16 +10,12 @@
   >
     <!-- Logo -->
     <el-menu-item index="0" class="logo-item">
-      <img
-        class="logo-img"
-        src="/imagenes/MARALOGO1.png"
-        alt="logo"
-      />
+      <img class="logo-img" src="/imagenes/MARALOGO1.png" alt="logo" />
     </el-menu-item>
 
     <!-- Nombre de la empresa -->
     <el-menu-item index="empresa" class="empresa-nombre">
-      <span class="empresa-texto">VCC ENLACE HUMANO</span>
+      <span class="empresa-texto">{{ empresaNombre || 'Sin empresa' }}</span>
     </el-menu-item>
 
     <div class="flex-spacer"></div>
@@ -43,30 +39,32 @@ export default {
       activeIndex: '0',
       username: '',
       userPhoto: '',
+      empresaNombre: ''
     };
   },
   mounted() {
     this.loadUserData();
+    this.loadEmpresa();
   },
   watch: {
-    '$route': 'loadUserData',
+    '$route': 'loadUserData'
   },
   methods: {
     loadUserData() {
       this.username = localStorage.getItem('username') || 'Usuario';
-      this.userPhoto =
-        localStorage.getItem('userPhoto') || 'https://i.pravatar.cc/40';
+      this.userPhoto = localStorage.getItem('userPhoto') || 'https://i.pravatar.cc/40';
+    },
+    loadEmpresa() {
+      this.empresaNombre = localStorage.getItem('empresa_nombre') || '';
     },
     handleSelect(index) {
       console.log(index);
     },
     logout() {
-      localStorage.removeItem('username');
-      localStorage.removeItem('userPhoto');
-      localStorage.removeItem('token');
+      localStorage.clear();
       this.$router.push({ name: 'inicio' });
-    },
-  },
+    }
+  }
 };
 </script>
 
@@ -81,6 +79,7 @@ export default {
   z-index: 10;
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
+  padding: 0 10px;
 }
 
 .flex-spacer {
@@ -95,13 +94,19 @@ export default {
 .empresa-nombre {
   cursor: default;
   pointer-events: none;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 15px !important;
 }
 
 .empresa-texto {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: #ffffff;
-  margin-left: 10px;
   letter-spacing: 1px;
 }
 

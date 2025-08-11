@@ -58,8 +58,10 @@ import LayoutMain from '../../components/LayoutMain.vue';
 import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
 import formClientes from '../clientes/Componentes/formClientes.vue';
+import axios from "axios";
 
-import api from '@/api'; // ✅ Este es el cliente Axios con baseURL a Render
+
+import api from '@/services/api';  // ajusta la ruta según tu estructura
 
 const mostrarFormulario = ref(false);
 const editandoFormulario = ref(false);
@@ -80,15 +82,44 @@ const cerrarFormularioHandler = () => {
 };
 
 // ✅ Obtener clientes
-const getClientes = async () => {
+
+// ✅ Obtener clientes filtrados por empresa_id
+async function getClientes() {
   try {
-    const response = await api.get('/dato_clientes/getdata');
-    clientes.value = response.data.data.reverse();
+    const token = localStorage.getItem("token");
+    const empresaId = localStorage.getItem("empresa_id");
+
+    if (!empresaId) {
+      console.error("No hay empresa seleccionada");
+      return;
+    }
+
+    const response = await axios.get(
+      "http://127.0.0.1:8000/api/dato_clientes/getdata",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        params: {
+          empresa_id: empresaId // 🔹 Lo enviamos como parámetro
+        }
+      }
+    );
+
+    if (response.data.status === 200) {
+      clientes.value = response.data.data; // 🔹 Llenar tabla
+    } else {
+      clientes.value = [];
+    }
+
+    console.log("Clientes cargados:", clientes.value);
   } catch (error) {
-    console.error('Error al obtener clientes:', error);
-    ElMessage({ type: 'error', message: 'Error al obtener los clientes' });
+    console.error("Error al obtener clientes:", error);
+    clientes.value = [];
   }
-};
+}
+
+
 
 // ✅ Editar cliente
 const editarFormulario = async (id) => {
@@ -107,28 +138,39 @@ const editarFormulario = async (id) => {
 // ✅ Crear o actualizar cliente
 const actualizarCliente = async (clienteActualizado) => {
   try {
+    const empresa_id = localStorage.getItem('empresa_id');
+
+    if (!empresa_id) {
+      ElMessage.error('No se encontró empresa seleccionada. Por favor selecciona una empresa.');
+      return;
+    }
+
+    const clienteConEmpresa = { ...clienteActualizado, empresa_id };
+
     if (editandoFormulario.value) {
-      const response = await api.put(`/dato_clientes/update/${clienteActualizado.id}`, clienteActualizado);
+      const response = await api.put(`/dato_clientes/update/${clienteActualizado.id}`, clienteConEmpresa);
       if (response.status === 200) {
-        ElMessage({ type: 'success', message: 'Cliente actualizado con éxito' });
+        ElMessage.success('Cliente actualizado con éxito');
         getClientes();
         cerrarFormularioHandler();
       }
     } else {
-      const response = await api.post('/dato_clientes/save', clienteActualizado);
+      const response = await api.post('/dato_clientes', clienteConEmpresa);
       if (response.status === 200 || response.status === 201) {
-        ElMessage({ type: 'success', message: 'Tercero creado con éxito' });
+        ElMessage.success('Cliente creado con éxito');
         getClientes();
         cerrarFormularioHandler();
       } else {
-        ElMessage({ type: 'error', message: 'Error al crear tercero' });
+        ElMessage.error('Error al crear tercero');
       }
     }
   } catch (error) {
     console.error('Error al guardar el cliente:', error);
-    ElMessage({ type: 'error', message: 'Hubo un error al guardar el cliente' });
+    const msg = error.response?.data?.message || 'Hubo un error al guardar el cliente';
+    ElMessage.error(msg);
   }
 };
+
 
 // ✅ Eliminar cliente
 const eliminarFormulario = (id) => {

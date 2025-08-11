@@ -69,18 +69,29 @@ const passwordRules = [{ required: true, message: 'Ingrese la contraseña', trig
 
 const login = async () => {
   try {
-    await formRef.value.validate()
-    const response = await axios.post(`${import.meta.env.VITE_API_URL}/login`, form)
+    await formRef.value.validate();
+    const response = await axios.post(`${import.meta.env.VITE_API_URL}/login`, form);
 
+    console.log('empresas desde backend', response.data.empresas);
+    const empresas = Array.isArray(response.data.empresas) ? response.data.empresas : [];
 
-    localStorage.setItem('token', response.data.token)
+    localStorage.setItem('token', response.data.token);
     localStorage.setItem('username', response.data.username);
 
-    ElMessage.success('Inicio de sesión exitoso')
-    router.push('/home')
+    if (empresas.length === 1) {
+      localStorage.setItem('empresa_id', empresas[0].id);
+      ElMessage.success('Inicio de sesión exitoso');
+      router.push('/home');
+    } else if (empresas.length > 1) {
+      localStorage.setItem('empresas', JSON.stringify(empresas));
+      router.push('/seleccionar-empresa'); // aquí muestras el select que ya hiciste
+    } else {
+      ElMessage.error('No tienes empresas asociadas. Contacta al administrador.');
+    }
+
   } catch (error) {
-    console.log(error.response)
-    ElMessage.error('Credenciales incorrectas')
+    console.log(error.response);
+    ElMessage.error('Credenciales incorrectas');
   }
 }
 </script>

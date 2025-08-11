@@ -17,19 +17,25 @@
     </el-form-item>
 
     <el-form-item label="Confirmar Contraseña" v-if="!esEdicion">
-  <el-input v-model="usuarioLocal.password_confirmation" type="password" />
-</el-form-item>
+      <el-input v-model="usuarioLocal.password_confirmation" type="password" />
+    </el-form-item>
 
-
-   <!--
-<el-form-item label="Rol">
-  <el-select v-model="usuarioLocal.rol" placeholder="Seleccione un rol">
-    <el-option label="Administrador" value="admin" />
-    <el-option label="Usuario" value="usuario" />
-  </el-select>
-</el-form-item>
--->
-
+    <!-- NUEVO: Selección múltiple de empresas -->
+    <el-form-item label="Empresas">
+      <el-select
+        v-model="usuarioLocal.empresas"
+        multiple
+        filterable
+        placeholder="Seleccione empresas"
+      >
+        <el-option
+          v-for="empresa in listaEmpresas"
+          :key="empresa.id"
+          :label="empresa.nombre"
+          :value="empresa.id"
+        />
+      </el-select>
+    </el-form-item>
 
     <!-- Botones -->
     <el-form-item>
@@ -40,31 +46,43 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ref, watch, computed, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import axios from 'axios'
 
 const props = defineProps({
   usuario: Object,
-});
+})
 
-const emit = defineEmits(['guardar', 'cancelar']);
+const emit = defineEmits(['guardar', 'cancelar'])
 
-// Crear una copia local para no modificar directamente la prop
-const usuarioLocal = ref({ ...props.usuario });
+const usuarioLocal = ref({ ...props.usuario })
+const esEdicion = computed(() => !!usuarioLocal.value.id)
 
-// Detecta si estamos editando
-const esEdicion = computed(() => !!usuarioLocal.value.id);
+const listaEmpresas = ref([]) // Lista de empresas para el select
 
-// Cuando cambie el prop, actualiza la copia local
+// Cargar empresas desde backend
+const cargarEmpresas = async () => {
+  try {
+    const { data } = await axios.get('/api/empresas')
+    listaEmpresas.value = data
+  } catch (error) {
+    ElMessage.error('Error cargando empresas')
+  }
+}
+
+onMounted(() => {
+  cargarEmpresas()
+})
+
 watch(
   () => props.usuario,
   (nuevo) => {
-    usuarioLocal.value = { ...nuevo };
+    usuarioLocal.value = { ...nuevo }
   },
   { immediate: true }
-);
+)
 
-// Guardar usuario
 const guardar = () => {
   const payload = {
     nombre_usuario: usuarioLocal.value.nombre_usuario,
@@ -72,15 +90,14 @@ const guardar = () => {
     identificacion: usuarioLocal.value.identificacion,
     password: usuarioLocal.value.password,
     password_confirmation: usuarioLocal.value.password_confirmation,
-  };
+    empresas: usuarioLocal.value.empresas || [], // Enviar array de empresas seleccionadas
+  }
 
-  console.log('📦 Enviando datos desde el hijo:', payload);
+  console.log('📦 Enviando datos desde el hijo:', payload)
+  emit('guardar', payload)
+}
 
-  emit('guardar', payload);
-};
-
-// Cancelar y cerrar el formulario
 const cancelar = () => {
-  emit('cancelar');
-};
+  emit('cancelar')
+}
 </script>

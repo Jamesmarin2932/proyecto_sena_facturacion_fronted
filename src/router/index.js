@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 // Componentes principales
 import LayoutMain from '../components/LayoutMain.vue'
 import Inicio from '../components/Inicio.vue'
+import SeleccionEmpresa from '../views/SeleccionEmpresa.vue'
 
 // Módulos
 import Clientes from '../views/clientes/clientes.vue'
@@ -21,6 +22,7 @@ import LibroDiario from '../views/contabilidad/componentes/librodiario.vue'
 
 const routes = [
   { path: '/', name: 'inicio', component: Inicio },
+  { path: '/seleccionar-empresa', name: 'seleccionarEmpresa', component: SeleccionEmpresa },
   { path: '/home', name: 'home', component: LayoutMain },
   { path: '/clientes', name: 'clientes', component: Clientes },
   { path: '/productos', name: 'productos', component: Productos },
@@ -63,7 +65,13 @@ const routes = [
         component: () => import('../views/contabilidad/componentes/GestionCuentas.vue')
       }
     ]
-  }
+  },
+
+  {
+  path: '/empresas',
+  name: 'Empresas',
+  component: () => import('@/views/empresas/Empresas.vue')
+}
 
 
 
