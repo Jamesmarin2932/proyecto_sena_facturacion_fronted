@@ -76,17 +76,29 @@
           <el-table-column prop="factura" label="Factura" width="100" />
           <el-table-column prop="cuenta" label="Cuenta" width="120" />
 
-          <el-table-column label="Tercero">
-            <template #default="{ row }">
-              {{
-                row.tercero
-                  ? row.tercero.razon_social
-                    ? row.tercero.razon_social
-                    : row.tercero.nombres + ' ' + row.tercero.apellidos
-                  : ''
-              }}
-            </template>
-          </el-table-column>
+          <el-table-column label="Tercero" min-width="200">
+  <template #default="{ row }">
+    <div v-if="row.tercero">
+      <!-- ✅ Muestra razón social si existe -->
+      <div v-if="row.tercero.razon_social" class="tercero-info">
+        <strong>{{ row.tercero.razon_social }}</strong>
+        <div v-if="row.tercero.identificacion" class="tercero-details">
+          {{ row.tercero.identificacion }}
+        </div>
+      </div>
+      
+      <!-- ✅ Muestra nombre completo si no hay razón social -->
+      <div v-else class="tercero-info">
+        <strong>{{ row.tercero.nombres }} {{ row.tercero.apellidos }}</strong>
+        <div v-if="row.tercero.identificacion" class="tercero-details">
+          {{ row.tercero.identificacion }}
+        </div>
+      </div>
+    </div>
+    
+    <span v-else class="text-muted">-- Sin asignar --</span>
+  </template>
+</el-table-column>
 
           <el-table-column label="Fecha" width="120">
             <template #default="{ row }">

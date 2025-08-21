@@ -9,7 +9,6 @@
         <el-card class="login-card">
           <!-- LOGO -->
           <div class="logo-container">
-            <!-- ✅ RUTA RELATIVA DIRECTA DESDE /public -->
             <img src="/imagenes/MARALOGO1.png" alt="Logo" class="logo-img" />
           </div>
 
@@ -21,7 +20,7 @@
             <el-form-item prop="usuario" :rules="usuarioRules">
               <el-input v-model="form.usuario" placeholder="Usuario" size="large">
                 <template #prefix>
-                  <el-icon><i class="el-icon-user"></i></el-icon>
+                  <el-icon><User /></el-icon>
                 </template>
               </el-input>
             </el-form-item>
@@ -29,14 +28,20 @@
             <el-form-item prop="password" :rules="passwordRules">
               <el-input v-model="form.password" type="password" placeholder="Contraseña" show-password size="large">
                 <template #prefix>
-                  <el-icon><i class="el-icon-lock"></i></el-icon>
+                  <el-icon><Lock /></el-icon>
                 </template>
               </el-input>
             </el-form-item>
 
             <div class="button-container">
-              <el-button type="primary" size="large" class="login-button" @click="login">
-                Iniciar sesión
+              <el-button 
+                type="primary" 
+                size="large" 
+                class="login-button" 
+                @click="login"
+                :loading="loading"
+              >
+                {{ loading ? 'Iniciando sesión...' : 'Iniciar sesión' }}
               </el-button>
             </div>
           </el-form>
@@ -53,11 +58,13 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import { User, Lock } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
+import api from '@/api' // ✅ Usar tu instancia de api configurada
 
 const router = useRouter()
 const formRef = ref(null)
+const loading = ref(false)
 
 const form = reactive({
   usuario: '',
@@ -69,50 +76,84 @@ const passwordRules = [{ required: true, message: 'Ingrese la contraseña', trig
 
 const login = async () => {
   try {
-    await formRef.value.validate();
-    const response = await axios.post(`${import.meta.env.VITE_API_URL}/login`, form);
+    // Validar formulario
+    await formRef.value.validate()
+    loading.value = true
 
-    console.log('empresas desde backend', response.data.empresas);
-    const empresas = Array.isArray(response.data.empresas) ? response.data.empresas : [];
+    // ✅ Usar tu instancia de api (que incluye la baseURL automáticamente)
+    const response = await api.post('/login', form)
 
-    localStorage.setItem('token', response.data.token);
-    localStorage.setItem('username', response.data.username);
+    console.log('Respuesta completa del login:', response.data)
+    
+    const empresas = Array.isArray(response.data.empresas) ? response.data.empresas : []
+    const userData = response.data.user || {}
 
+    // Guardar datos en localStorage
+    localStorage.setItem('token', response.data.token)
+    localStorage.setItem('user', JSON.stringify(userData))
+    localStorage.setItem('username', userData.nombre_usuario || userData.usuario || '')
+    localStorage.setItem('empresas', JSON.stringify(empresas))
+
+    // Manejar redirección según número de empresas
     if (empresas.length === 1) {
-      localStorage.setItem('empresa_id', empresas[0].id);
-      ElMessage.success('Inicio de sesión exitoso');
-      router.push('/home');
+      // ✅ Una sola empresa - selección automática
+      localStorage.setItem('empresa_id', empresas[0].id)
+      localStorage.setItem('empresa_nombre', empresas[0].nombre_comercial || '')
+      
+      ElMessage.success(`Bienvenido a ${empresas[0].nombre_comercial}`)
+      router.push('/home')
+      
     } else if (empresas.length > 1) {
-      localStorage.setItem('empresas', JSON.stringify(empresas));
-      router.push('/seleccionar-empresa'); // aquí muestras el select que ya hiciste
+      // ✅ Múltiples empresas - ir a selección
+      ElMessage.success('Inicio de sesión exitoso')
+      router.push('/seleccionar-empresa')
+      
     } else {
-      ElMessage.error('No tienes empresas asociadas. Contacta al administrador.');
+      // ❌ Sin empresas
+      ElMessage.error('No tienes empresas asociadas. Contacta al administrador.')
+      // Limpiar datos por seguridad
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
     }
 
   } catch (error) {
-    console.log(error.response);
-    ElMessage.error('Credenciales incorrectas');
+    console.error('Error en login:', error)
+    
+    // Mensaje de error específico
+    const errorMessage = error.response?.data?.error || 
+                        error.response?.data?.message || 
+                        'Credenciales incorrectas'
+    
+    ElMessage.error(errorMessage)
+    
+  } finally {
+    loading.value = false
   }
 }
+
+// ✅ Limpiar datos antiguos al cargar el componente
+localStorage.removeItem('empresa_id')
+localStorage.removeItem('empresa_nombre')
 </script>
 
 <style scoped>
 .main-container {
   background-color: #f4f4f4;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .login-box {
   display: flex;
-  height: 100vh;
+  flex: 1;
 }
 
 .left-side {
-  width: 800px;
-  min-width: 700px;
-  /* ✅ corregido: asegúrate que la extensión esté exactamente como el nombre del archivo */
+  flex: 1;
   background: url('/imagenes/MARALOGO1.png') no-repeat center center;
   background-size: cover;
+  min-height: 400px;
 }
 
 .right-side {
@@ -127,15 +168,10 @@ const login = async () => {
 .login-card {
   width: 100%;
   max-width: 400px;
-  padding: 4rem 3rem;
-  min-height: 500px;
+  padding: 3rem 2.5rem;
   border-radius: 20px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
   animation: fadeIn 0.6s ease-in;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
 }
 
 .logo-container {
@@ -143,15 +179,16 @@ const login = async () => {
   display: flex;
   justify-content: center;
 }
+
 .logo-img {
   width: 120px;
   height: auto;
 }
 
 .login-title {
-  font-size: 2.5rem;
+  font-size: 2rem;
   text-align: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
   color: #1d3557;
   font-weight: bold;
 }
@@ -160,78 +197,114 @@ const login = async () => {
   width: 100%;
 }
 
-.input-with-icon ::v-deep(.el-input__inner) {
+:deep(.el-input__inner) {
   border-radius: 12px;
-  padding-left: 50px;
-  height: 60px;
-  font-size: 1.2rem;
+  padding-left: 40px;
+  height: 50px;
+  font-size: 1rem;
+}
+
+:deep(.el-input__prefix) {
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
 }
 
 .button-container {
   display: flex;
   justify-content: center;
-  margin-top: 2.5rem;
+  margin-top: 2rem;
 }
 
 .login-button {
   width: 100%;
-  height: 60px;
-  font-size: 1.2rem;
+  height: 50px;
+  font-size: 1.1rem;
   background-color: #1d3557;
   font-weight: bold;
   border-radius: 10px;
+  border: none;
 }
+
 .login-button:hover {
   background-color: #16324f;
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+.login-button:active {
+  transform: translateY(0);
 }
 
 .footer {
   text-align: center;
-  padding: 1rem;
-  font-size: 0.85rem;
-  color: #aaa;
+  padding: 1.5rem;
+  font-size: 0.9rem;
+  color: #666;
+  background-color: #fff;
 }
 
 @keyframes fadeIn {
   0% {
     opacity: 0;
-    transform: scale(0.96);
+    transform: translateY(20px);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0);
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 968px) {
   .login-box {
     flex-direction: column;
   }
 
   .left-side {
-    height: 200px;
+    min-height: 250px;
+    flex: none;
   }
 
   .right-side {
-    padding: 2rem 1rem;
+    padding: 1.5rem;
   }
 
   .login-card {
-    min-height: auto;
-    padding: 3rem 2rem;
+    padding: 2rem 1.5rem;
+    max-width: 350px;
   }
 
   .login-title {
-    font-size: 2rem;
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
   }
 
   .logo-img {
-    width: 90px;
+    width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .right-side {
+    padding: 1rem;
   }
 
-  .input-with-icon ::v-deep(.el-input__inner),
+  .login-card {
+    padding: 1.5rem;
+    border-radius: 15px;
+  }
+
+  .login-title {
+    font-size: 1.5rem;
+  }
+
+  :deep(.el-input__inner) {
+    height: 45px;
+    font-size: 0.9rem;
+  }
+
   .login-button {
-    height: 50px;
+    height: 45px;
     font-size: 1rem;
   }
 }

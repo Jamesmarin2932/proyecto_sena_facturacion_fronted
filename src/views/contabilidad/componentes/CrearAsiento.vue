@@ -191,19 +191,53 @@ const agregarFila = () => {
 }
 
 const buscarTerceros = async (queryString, cb) => {
+  if (!queryString || queryString.length < 2) {
+    cb([])
+    return
+  }
+
   try {
     const response = await api.get('/dato_clientes/getdata');
     const clientes = Array.isArray(response.data) ? response.data : response.data.data || []
-
-    const resultados = clientes
-      .filter(c => {
-        const nombreCompleto = `${c.nombres} ${c.apellidos}`.toLowerCase()
-        return nombreCompleto.includes(queryString.toLowerCase())
-      })
-      .map(c => ({
-        value: `${c.nombres} ${c.apellidos}`,
-        id: c.id
-      }))
+    const query = queryString.toLowerCase().trim()
+const resultados = clientes
+  .filter(c => {
+    const camposBusqueda = [
+      c.nombres || '',
+      c.apellidos || '', 
+      c.razon_social || '',
+      c.identificacion || '',
+      c.email || '',
+      c.telefono || ''
+    ].map(campo => campo.toLowerCase())
+    
+    const query = queryString.toLowerCase()
+    return camposBusqueda.some(campo => campo.includes(query))
+  })
+  .map(c => {
+    // ✅ Texto principal (razón social o nombre completo)
+    let textoPrincipal = ''
+    if (c.razon_social) {
+      textoPrincipal = c.razon_social
+    } else {
+      textoPrincipal = [c.nombres, c.apellidos]
+        .filter(Boolean) // ✅ Elimina null/undefined
+        .join(' ')
+        .trim()
+    }
+    
+    // ✅ Texto secundario (identificación)
+    const textoSecundario = c.identificacion ? ` - ${c.identificacion}` : ''
+    
+    // ✅ Texto completo para display
+    const displayText = textoPrincipal + textoSecundario
+    
+    return {
+      value: displayText,
+      id: c.id,
+      datos: c
+    }
+  })
 
     cb(resultados)
   } catch (error) {
@@ -215,7 +249,13 @@ const buscarTerceros = async (queryString, cb) => {
 const handleSelectTercero = (row, item) => {
   row.tercero_id = item.id
   row.tercero_nombre = item.value
+  row.tercero_razon_social = item.datos.razon_social
+  row.tercero_identificacion = item.datos.identificacion
+  row.tercero_direccion = item.datos.direccion
+  row.tercero_telefono = item.datos.telefono
+  row.tercero_email = item.datos.email
 }
+
 
 const fetchSuggestions = (queryString, cb) => {
   if (!Array.isArray(cuentasContables.value)) {

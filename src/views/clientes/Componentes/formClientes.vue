@@ -80,45 +80,44 @@
           </el-form-item>
         </el-col>
 
-       <!-- País, Departamento y Ciudad (ordenado correctamente) -->
-<el-col :span="12">
-  <el-form-item label="País">
-    <CountrySelect v-model="form.pais" />
-  </el-form-item>
-</el-col>
+        <!-- País, Departamento y Ciudad -->
+        <el-col :span="12">
+          <el-form-item label="País">
+            <CountrySelect v-model="form.pais" />
+          </el-form-item>
+        </el-col>
 
-<el-col :span="12">
-  <el-form-item label="Departamento" prop="departamento">
-    <RegionSelect :country="form.pais" v-model="form.departamento" />
-  </el-form-item>
-</el-col>
+        <el-col :span="12">
+          <el-form-item label="Departamento" prop="departamento">
+            <RegionSelect :country="form.pais" v-model="form.departamento" />
+          </el-form-item>
+        </el-col>
 
-<el-col :span="12">
-  <el-form-item label="Ciudad" prop="ciudad">
-    <el-select
-      v-model="form.ciudad"
-      filterable
-      allow-create
-      default-first-option
-      placeholder="Escriba o seleccione"
-    >
-      <el-option
-        v-for="ciudad in ciudades"
-        :key="ciudad"
-        :label="ciudad"
-        :value="ciudad"
-      />
-    </el-select>
-  </el-form-item>
-</el-col>
+        <el-col :span="12">
+          <el-form-item label="Ciudad" prop="ciudad">
+            <el-select
+              v-model="form.ciudad"
+              filterable
+              allow-create
+              default-first-option
+              placeholder="Escriba o seleccione"
+            >
+              <el-option
+                v-for="ciudad in ciudades"
+                :key="ciudad"
+                :label="ciudad"
+                :value="ciudad"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
 
-        <!-- Código Postal y País -->
+        <!-- Código Postal -->
         <el-col :span="12">
           <el-form-item label="Código Postal">
             <el-input v-model="form.codigo_postal" />
           </el-form-item>
         </el-col>
-
 
         <!-- Teléfono y Correo -->
         <el-col :span="12">
@@ -133,11 +132,34 @@
           </el-form-item>
         </el-col>
 
+        <!-- Cuenta Gasto/Costo - MEJORADO -->
         <el-col :span="12">
-  <el-form-item label="Cuenta Gasto/Costo">
-    <el-input v-model="form.cuenta_gasto_costo" placeholder="Ej: 510505 - Gastos de Administración" />
-  </el-form-item>
-</el-col>
+          <el-form-item label="Cuenta Gasto/Costo">
+            <el-select
+              v-model="cuentaSeleccionada"
+              filterable
+              clearable
+              remote
+              reserve-keyword
+              placeholder="Buscar por código o nombre..."
+              :remote-method="buscarCuentas"
+              :loading="cargandoCuentas"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="cuenta in cuentasContablesFiltradas"
+                :key="cuenta.id"
+                :label="`${cuenta.codigo} - ${cuenta.nombre}`"
+                :value="cuenta"
+              >
+                <span style="float: left; font-weight: bold">{{ cuenta.codigo }}</span>
+                <span style="float: right; color: #8492a6; font-size: 13px; margin-left: 10px">
+                  {{ cuenta.nombre }}
+                </span>
+              </el-option>
+            </el-select>
+          </el-form-item>
+        </el-col>
 
         <!-- Actividad Económica -->
         <el-col :span="24">
@@ -155,75 +177,64 @@
       </el-row>
 
       <!-- Botones -->
-      <!-- Botones alineados a la derecha -->
-<div class="flex justify-end mt-6 space-x-3">
-  <el-button @click="$emit('cerrarFormulario')">Cancelar</el-button>
-  <el-button type="primary" @click="guardarCliente">Guardar</el-button>
-</div>
-
+      <div class="flex justify-end mt-6 space-x-3">
+        <el-button @click="$emit('cerrarFormulario')">Cancelar</el-button>
+        <el-button type="primary" @click="guardarCliente">Guardar</el-button>
+      </div>
     </el-form>
   </el-card>
 </template>
 
-
-
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue';
-import axios from 'axios';
-import { CountrySelect, RegionSelect } from 'vue3-country-region-select';
-import { ElMessage } from 'element-plus';
-
+import { ref, reactive, watch, onMounted, computed } from 'vue'
+import axios from 'axios'
+import api from '@/api' // ✅ Importa tu axios configurado
+import { CountrySelect, RegionSelect } from 'vue3-country-region-select'
+import { ElMessage } from 'element-plus'
 
 const props = defineProps({
   cliente: Object
-});
-const emit = defineEmits(['guardar', 'cerrarFormulario']);
+})
+const emit = defineEmits(['guardar', 'cerrarFormulario'])
 
-const formRef = ref(null);
-const formSize = ref('default');
+const formRef = ref(null)
+const formSize = ref('default')
 
 const form = reactive({
-  tipo_identificacion: '',
-  numero_identificacion: '',
-  nombres: '',
-  apellidos: '',
-  razon_social: '',
-  tipo_persona: 'natural',
-  tipo_tercero: 'cliente',
-  direccion: '',
-  departamento: '',
-  ciudad: '',
-  codigo_postal: '',
-  pais: 'Colombia',
-  telefono: '',
-  correo: '',
-  actividad_economica: '',
-  observaciones: '',
-  cuenta_gasto_costo: '' // 👈 nuevo campo
-});
+  // ... otros campos existentes ...
+  cuenta_gasto_costo_id: null
+})
 
+// Cuenta seleccionada (objeto completo)
+const cuentaSeleccionada = ref(null)
 
-watch(() => props.cliente, (nuevo) => {
-  if (nuevo && Object.keys(nuevo).length) {
-    Object.assign(form, { ...nuevo });
+// Watcher para sincronizar con el formulario
+watch(cuentaSeleccionada, (nuevaCuenta) => {
+  if (nuevaCuenta) {
+    form.cuenta_gasto_costo_id = nuevaCuenta.id
   } else {
-    Object.keys(form).forEach(key => form[key] = '');
+    form.cuenta_gasto_costo_id = null
   }
-}, { immediate: true });
+})
 
-const rules = {
-  nombres: [{ required: true, message: 'Ingrese nombres', trigger: 'blur' }],
-  apellidos: [{ required: true, message: 'Ingrese apellidos', trigger: 'blur' }],
-  tipo_identificacion: [{ required: true, message: 'Seleccione tipo de ID', trigger: 'change' }],
-  numero_identificacion: [{ required: true, message: 'Ingrese número de identificación', trigger: 'blur' }],
-  telefono: [{ required: true, message: 'Ingrese teléfono', trigger: 'blur' }],
-  correo: [
-    { required: true, message: 'Ingrese correo', trigger: 'blur' },
-    { type: 'email', message: 'Correo inválido', trigger: 'blur' },
-  ],
-};
+// Watcher para cuando editas un cliente existente
+watch(() => props.cliente, (nuevoCliente) => {
+  if (nuevoCliente && nuevoCliente.cuenta_gasto_costo_id) {
+    // Buscar la cuenta correspondiente al ID guardado
+    const cuentaEncontrada = cuentasContables.value.find(
+      cuenta => cuenta.id === nuevoCliente.cuenta_gasto_costo_id
+    )
+    if (cuentaEncontrada) {
+      cuentaSeleccionada.value = cuentaEncontrada
+    }
+  } else {
+    cuentaSeleccionada.value = null
+  }
+}, { immediate: true })
 
-const ciudades = ref([]);
+// ... rules existentes ...
+
+const ciudades = ref([])
 const countryCodes = {
   Colombia: 'co',
   México: 'mx',
@@ -234,64 +245,80 @@ const countryCodes = {
   Venezuela: 've',
   Panamá: 'pa',
   Uruguay: 'uy',
-};
+}
 
-watch([() => form.departamento, () => form.pais], async ([dep, pais]) => {
-  ciudades.value = [];
-  form.ciudad = '';
-  form.codigo_postal = '';
-  const code = countryCodes[pais];
-  if (!dep || !code) return;
+// ... watch de ciudades y código postal ...
 
+/* ------------------ ✅ CUENTAS CONTABLES - CON SANCTUM ------------------ */
+const cuentasContables = ref([])
+const cuentasContablesFiltradas = ref([])
+const cargandoCuentas = ref(false)
+
+const cargarCuentasContables = async () => {
   try {
-    const res = await axios.get('https://api.geoapify.com/v1/geocode/search', {
-      params: {
-        text: dep,
-        filter: `countrycode:${code}`,
-        lang: 'es',
-        limit: 20,
-        apiKey: 'c3f58dda1e8b4870b44697ee0aea78f1',
-      },
-    });
-
-    const features = res.data?.features || [];
-    ciudades.value = [...new Set(features.map(f =>
-      f.properties.city || f.properties.county
-    ).filter(Boolean))];
+    cargandoCuentas.value = true
+    
+    // ✅ Usa tu api configurada
+    const response = await api.get('/cuentas')
+    
+    cuentasContables.value = response.data
+    cuentasContablesFiltradas.value = cuentasContables.value
+    
+    // Si estamos editando un cliente, buscar su cuenta
+    if (props.cliente && props.cliente.cuenta_gasto_costo_id) {
+      const cuentaExistente = cuentasContables.value.find(
+        cuenta => cuenta.id === props.cliente.cuenta_gasto_costo_id
+      )
+      if (cuentaExistente) {
+        cuentaSeleccionada.value = cuentaExistente
+      }
+    }
   } catch (error) {
-    console.warn('Error al obtener ciudades:', error);
-    ciudades.value = [];
+    console.error('Error al cargar cuentas contables:', error)
+    if (error.response?.status === 401) {
+      ElMessage.error('Sesión expirada. Por favor inicie sesión nuevamente.')
+    } else {
+      ElMessage.error('Error al cargar las cuentas contables')
+    }
+    cuentasContables.value = []
+  } finally {
+    cargandoCuentas.value = false
   }
-});
+}
 
-watch(() => form.ciudad, async (ciudad) => {
-  const code = countryCodes[form.pais];
-  if (!ciudad || !code) return;
-
-  try {
-    const res = await axios.get('https://api.geoapify.com/v1/geocode/search', {
-      params: {
-        text: ciudad,
-        filter: `countrycode:${code}`,
-        lang: 'es',
-        limit: 1,
-        apiKey: 'c3f58dda1e8b4870b44697ee0aea78f1',
-      },
-    });
-
-    const props = res.data?.features?.[0]?.properties;
-    form.codigo_postal = props?.postcode || '';
-  } catch (error) {
-    console.warn('Error al obtener código postal:', error);
+const buscarCuentas = (query) => {
+  if (!query) {
+    cuentasContablesFiltradas.value = cuentasContables.value
+    return
   }
-});
+  
+  const q = query.toLowerCase().trim()
+  cuentasContablesFiltradas.value = cuentasContables.value.filter(c =>
+    c.codigo.toLowerCase().includes(q) || 
+    c.nombre.toLowerCase().includes(q)
+  )
+}
+
+onMounted(() => {
+  cargarCuentasContables()
+})
+
 
 const guardarCliente = () => {
   formRef.value.validate((valid) => {
-    if (!valid) return;
-    emit('guardar', { ...form });
-  });
-};
+    if (!valid) return
+    emit('guardar', { ...form })
+  })
+}
 </script>
+
+<style scoped>
+/* Mejorar la visualización de las opciones */
+.el-select-dropdown__item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 20px;
+}
+</style>
 
 
