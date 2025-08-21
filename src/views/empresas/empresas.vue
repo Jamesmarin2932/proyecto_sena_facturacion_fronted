@@ -48,7 +48,7 @@
       <el-divider />
 
       <!-- Tabla -->
-      <el-table :data="empresas" style="width: 100%">
+      <el-table :data="empresas" style="width: 100%" v-loading="loading">
         <el-table-column prop="nombre_razon_social" label="Nombre o Razón Social" />
         <el-table-column prop="nombre_comercial" label="Nombre Comercial" />
         <el-table-column prop="nit" label="NIT" />
@@ -61,7 +61,9 @@
         <el-table-column label="Acciones" width="180">
           <template #default="scope">
             <el-button size="small" @click="editarEmpresa(scope.row)">Editar</el-button>
-            <el-button size="small" type="danger" @click="eliminarEmpresa(scope.row.id)">Eliminar</el-button>
+            <el-button size="small" type="danger" @click="confirmarEliminacion(scope.row.id)">
+              Eliminar
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -70,11 +72,15 @@
 </template>
 
 <script setup>
-import LayoutMain from '../../components/LayoutMain.vue'
+import LayoutMain from '@/components/LayoutMain.vue'
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import axios from 'axios'
+import api from '@/services/api'
 
+const router = useRouter()
+
+// Estado del componente
 const empresa = ref({
   id: null,
   nombre_razon_social: '',
@@ -88,43 +94,75 @@ const empresa = ref({
 })
 
 const empresas = ref([])
+const loading = ref(false)
 
+// Métodos
 const cargarEmpresas = async () => {
   try {
-    const { data } = await axios.get('/api/empresas')
-    empresas.value = data
-  } catch {
-    ElMessage.error('Error al cargar empresas')
+    loading.value = true
+    const { data } = await api.get('/empresas')
+    empresas.value = data.data || data
+  } catch (error) {
+    console.error('Error al cargar empresas:', error)
+    ElMessage.error('Error al cargar empresas. Verifica tu conexión o permisos.')
+    
+    if (error.response?.status === 401) {
+      router.push('/login')
+    }
+  } finally {
+    loading.value = false
   }
 }
 
 const guardarEmpresa = async () => {
   try {
     if (empresa.value.id) {
-      await axios.put(`/api/empresas/${empresa.value.id}`, empresa.value)
-      ElMessage.success('Empresa actualizada')
+      await api.put(`/empresas/${empresa.value.id}`, empresa.value)
+      ElMessage.success('Empresa actualizada correctamente')
     } else {
-      await axios.post('/api/empresas', empresa.value)
-      ElMessage.success('Empresa creada')
+      await api.post('/empresas', empresa.value)
+      ElMessage.success('Empresa creada correctamente')
     }
     resetForm()
-    cargarEmpresas()
-  } catch {
-    ElMessage.error('Error al guardar empresa')
+    await cargarEmpresas()
+  } catch (error) {
+    console.error('Error al guardar empresa:', error)
+    ElMessage.error(error.response?.data?.message || 'Error al guardar empresa')
   }
 }
 
-const editarEmpresa = (emp) => {
-  empresa.value = { ...emp }
+const editarEmpresa = (empresaSeleccionada) => {
+  empresa.value = { ...empresaSeleccionada }
+}
+
+const confirmarEliminacion = async (id) => {
+  try {
+    await ElMessageBox.confirm(
+      '¿Está seguro de eliminar esta empresa? Esta acción no se puede deshacer.',
+      'Confirmar eliminación',
+      {
+        confirmButtonText: 'Eliminar',
+        cancelButtonText: 'Cancelar',
+        type: 'warning',
+      }
+    )
+    await eliminarEmpresa(id)
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.info('Eliminación cancelada')
+    }
+  }
 }
 
 const eliminarEmpresa = async (id) => {
   try {
-    await ElMessageBox.confirm('¿Está seguro de eliminar esta empresa?', 'Confirmar', { type: 'warning' })
-    await axios.delete(`/api/empresas/${id}`)
-    ElMessage.success('Empresa eliminada')
-    cargarEmpresas()
-  } catch {}
+    await api.delete(`/empresas/${id}`)
+    ElMessage.success('Empresa eliminada correctamente')
+    await cargarEmpresas()
+  } catch (error) {
+    console.error('Error al eliminar empresa:', error)
+    ElMessage.error(error.response?.data?.message || 'Error al eliminar empresa')
+  }
 }
 
 const resetForm = () => {
@@ -141,6 +179,8 @@ const resetForm = () => {
   }
 }
 
-onMounted(cargarEmpresas)
+// Ciclo de vida
+onMounted(() => {
+  cargarEmpresas()
+})
 </script>
-

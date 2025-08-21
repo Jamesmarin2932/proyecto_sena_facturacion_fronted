@@ -69,18 +69,33 @@ const cerrarFormulario = () => {
 
 // Obtener usuarios del backend
 const getUsuarios = async () => {
-  try { const response = await api.get('/usuarios');
+  try { 
+    // Verifica que el token se esté enviando
+    const token = localStorage.getItem('token');
+    console.log('Token:', token);
+    
+    const response = await api.get('/usuarios');
+    console.log('Respuesta de /usuarios:', response);
+    console.log('Datos recibidos:', response.data);
+    
     if (response.data && response.data.users) {
       usuarios.value = response.data.users;
+      console.log('Usuarios cargados:', usuarios.value);
     } else {
-      ElMessage.error('No se encontraron usuarios.');
+      ElMessage.error('Estructura de respuesta inesperada');
     }
   } catch (error) {
-    ElMessage.error('Error al obtener los usuarios');
+    console.error('Error completo:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      headers: error.response?.headers
+    });
+    ElMessage.error('Error al obtener usuarios');
   }
 };
 
-// Eliminar usuario
+
+// En eliminarFormulario - usa la misma ruta que en tu backend
 const eliminarFormulario = (id) => {
   ElMessageBox.confirm(
     `¿Está seguro de eliminar el usuario?`, 
@@ -93,7 +108,7 @@ const eliminarFormulario = (id) => {
   )
   .then(async () => {
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/users/delete/${id}`);
+      await api.delete(`/usuarios/${id}`); // ✅ Ruta correcta
       ElMessage.success('Usuario eliminado con éxito');
       getUsuarios();
     } catch (error) {
@@ -105,14 +120,15 @@ const eliminarFormulario = (id) => {
   });
 };
 
-// Editar usuario
+// En editarFormulario - usa la misma ruta
 const editarFormulario = async (id) => {
   mostrarFormulario.value = true;
   editandoFormulario.value = true;
 
   try {
-    const response = await axios.get(`http://127.0.0.1:8000/api/users/getdataById/${id}`);
-    usuario.value = { ...response.data.data };
+    const response = await api.get(`/usuarios/${id}`); // ✅ Ruta correcta
+    // El backend devuelve: { user: {...} }
+    usuario.value = { ...response.data.user };
   } catch (error) {
     ElMessage.error('Error al obtener los datos del usuario');
   }
@@ -127,11 +143,43 @@ onMounted(() => {
 //guardar usuario
 
 const guardarUsuario = async (payload) => {
+  // Validar campos obligatorios
+  if (
+    !payload.nombre_usuario ||
+    !payload.usuario ||
+    !payload.identificacion ||
+    (!editandoFormulario.value && (!payload.password || !payload.password_confirmation))
+  ) {
+    return ElMessage.error('Por favor complete todos los campos obligatorios');
+  }
+
+  // Validar contraseñas solo si es nuevo
+  if (!editandoFormulario.value && payload.password !== payload.password_confirmation) {
+    return ElMessage.error('Las contraseñas no coinciden');
+  }
+
   try {
-    const response = await api.post('/users/register', payload);
-    console.log('✅ Usuario registrado:', response.data);
+    let response;
+
+    if (editandoFormulario.value) {
+      // 👉 Editar usuario existente
+      response = await api.put(`/users/update/${payload.id}`, payload);
+      ElMessage.success('Usuario actualizado con éxito');
+    } else {
+      // 👉 Crear nuevo usuario
+      response = await api.post('/users/register', payload);
+      ElMessage.success('Usuario registrado con éxito');
+    }
+
+    // Refrescar tabla y cerrar formulario
+    await getUsuarios();
+    cerrarFormulario();
+
+    return response.data;
   } catch (error) {
-    console.error('❌ Error:', error.response?.data || error);
+    const msg = error.response?.data?.message || 'Error al guardar usuario';
+    ElMessage.error(msg);
+    console.error('Error al guardar usuario:', error.response?.data || error);
   }
 };
 

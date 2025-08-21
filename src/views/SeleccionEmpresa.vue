@@ -13,7 +13,7 @@
             <el-option
               v-for="empresa in empresas"
               :key="empresa.id"
-              :label="empresa.nombre"
+              :label="empresa.nombre_comercial"
               :value="empresa.id"
             />
           </el-select>
@@ -35,7 +35,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import LayoutMain from '../components/LayoutMain.vue' // Layout con navbar
 
 const router = useRouter()
 const empresas = ref([])
@@ -45,7 +44,6 @@ onMounted(() => {
   const storedEmpresas = JSON.parse(localStorage.getItem('empresas')) || []
 
   if (storedEmpresas.length === 0) {
-    // Si no hay empresas, redirige a home
     ElMessage.warning('No hay empresas registradas')
     router.push('/home')
     return
@@ -60,19 +58,18 @@ const seleccionar = () => {
     return
   }
 
-  // Buscamos el objeto empresa por su id
+  // Buscar empresa por id
   const empresaObj = empresas.value.find(
     e => e.id === empresaSeleccionada.value
   )
 
-  // Guardamos en localStorage
+  // Guardar en localStorage con clave uniforme
   localStorage.setItem('empresa_id', empresaSeleccionada.value)
-  localStorage.setItem('empresa_nombre', empresaObj?.nombre || '')
+  localStorage.setItem('empresa_nombre', empresaObj?.nombre_comercial || '')
 
-  ElMessage.success(`Empresa "${empresaObj?.nombre}" seleccionada`)
+  ElMessage.success(`Empresa "${empresaObj?.nombre_comercial}" seleccionada`)
   router.push('/home')
 }
-
 </script>
 
 <style scoped>

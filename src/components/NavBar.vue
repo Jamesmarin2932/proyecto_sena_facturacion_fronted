@@ -13,7 +13,7 @@
       <img class="logo-img" src="/imagenes/MARALOGO1.png" alt="logo" />
     </el-menu-item>
 
-    <!-- Nombre de la empresa -->
+    <!-- Nombre comercial de la empresa -->
     <el-menu-item index="empresa" class="empresa-nombre">
       <span class="empresa-texto">{{ empresaNombre || 'Sin empresa' }}</span>
     </el-menu-item>
@@ -45,6 +45,11 @@ export default {
   mounted() {
     this.loadUserData();
     this.loadEmpresa();
+    // Escuchar cambios en localStorage (por si cambia la empresa en otra vista)
+    window.addEventListener('storage', this.loadEmpresa);
+  },
+  beforeUnmount() {
+    window.removeEventListener('storage', this.loadEmpresa);
   },
   watch: {
     '$route': 'loadUserData'
@@ -55,6 +60,7 @@ export default {
       this.userPhoto = localStorage.getItem('userPhoto') || 'https://i.pravatar.cc/40';
     },
     loadEmpresa() {
+      // Ahora toma el nombre_comercial
       this.empresaNombre = localStorage.getItem('empresa_nombre') || '';
     },
     handleSelect(index) {

@@ -29,11 +29,11 @@
         placeholder="Seleccione empresas"
       >
         <el-option
-          v-for="empresa in listaEmpresas"
-          :key="empresa.id"
-          :label="empresa.nombre"
-          :value="empresa.id"
-        />
+  v-for="empresa in listaEmpresas"
+  :key="empresa.id"
+  :label="empresa.nombre_comercial"
+  :value="empresa.id"
+/>
       </el-select>
     </el-form-item>
 
@@ -64,12 +64,21 @@ const listaEmpresas = ref([]) // Lista de empresas para el select
 // Cargar empresas desde backend
 const cargarEmpresas = async () => {
   try {
-    const { data } = await axios.get('/api/empresas')
-    listaEmpresas.value = data
+    const token = localStorage.getItem('token');
+
+    const { data } = await axios.get('http://localhost:8000/api/empresas', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    listaEmpresas.value = data;
   } catch (error) {
-    ElMessage.error('Error cargando empresas')
+    console.error(error);
+    ElMessage.error('Error cargando empresas');
   }
-}
+};
+
 
 onMounted(() => {
   cargarEmpresas()
@@ -85,17 +94,19 @@ watch(
 
 const guardar = () => {
   const payload = {
+    id: usuarioLocal.value.id,
     nombre_usuario: usuarioLocal.value.nombre_usuario,
     usuario: usuarioLocal.value.usuario,
     identificacion: usuarioLocal.value.identificacion,
     password: usuarioLocal.value.password,
     password_confirmation: usuarioLocal.value.password_confirmation,
-    empresas: usuarioLocal.value.empresas || [], // Enviar array de empresas seleccionadas
+    empresas: usuarioLocal.value.empresas || []  // 👈 aquí deben estar los IDs seleccionados
   }
 
-  console.log('📦 Enviando datos desde el hijo:', payload)
+  console.log('📦 Payload enviado al padre:', payload)
   emit('guardar', payload)
 }
+
 
 const cancelar = () => {
   emit('cancelar')
