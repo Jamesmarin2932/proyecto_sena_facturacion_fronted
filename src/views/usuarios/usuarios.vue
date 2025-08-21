@@ -184,6 +184,29 @@ const guardarUsuario = async (payload) => {
 };
 
 
+// En usuarios.vue
+const verificarAccesoEmpresa = async () => {
+  try {
+    const empresaId = localStorage.getItem('empresa_activa');
+    const response = await api.get('/mis-empresas');
+    
+    console.log('🏢 Empresas del usuario:', response.data);
+    console.log('🔍 ¿Tiene acceso a empresa', empresaId, '?', 
+      response.data.some(empresa => empresa.id == empresaId));
+    
+  } catch (error) {
+    console.error('Error al verificar empresas:', error);
+  }
+};
+
+// Llama esta función en mounted
+onMounted(() => {
+  verificarAccesoEmpresa();
+  getUsuarios();
+});
+
+
+
 </script>
 
 <style scoped>
