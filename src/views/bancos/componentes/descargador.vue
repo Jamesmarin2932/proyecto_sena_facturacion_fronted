@@ -15,7 +15,7 @@
   
   const descargarPlantilla = () => {
     const wb = XLSX.utils.book_new();
-    const wsData = [['Fecha', 'Concepto', 'Débito', 'Crédito', 'Contrapartida', 'Saldo']];
+    const wsData = [['Tipo de asiento','Fecha', 'Descripcion','Tercero','Cuenta','Contrapartida', 'Débito', 'Crédito',  'Saldo']];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     XLSX.utils.book_append_sheet(wb, ws, 'PlantillaBancos');
     XLSX.writeFile(wb, 'plantilla_bancos.xlsx');

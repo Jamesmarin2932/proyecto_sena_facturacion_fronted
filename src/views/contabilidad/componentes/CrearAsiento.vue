@@ -3,11 +3,16 @@
     <!-- Cabecera -->
     <el-row :gutter="10">
       <el-col :span="5">
-        <el-select v-model="form.tipo" placeholder="Tipo de asiento" style="width: 100%;">
-          <el-option label="CC" value="CC" />
-          <el-option label="RC" value="RC" />
-          <el-option label="NC" value="NC" />
-          <el-option label="CE" value="CE" />
+        <el-select 
+          v-model="form.tipo" 
+          placeholder="Tipo de asiento *" 
+          style="width: 100%;"
+          :disabled="modoEdicion"
+        >
+          <el-option label="CC - Comprobante de Contabilidad" value="CC" />
+          <el-option label="RC - Recibo de Caja" value="RC" />
+          <el-option label="NC - Nota Contable" value="NC" />
+          <el-option label="CE - Comprobante de Egreso" value="CE" />
         </el-select>
       </el-col>
       <el-col :span="5">
@@ -20,11 +25,22 @@
         <el-input
           v-model="form.consecutivo"
           placeholder="Consecutivo"
-          :disabled="!modoManual"
-        />
+          :disabled="!modoManual || modoEdicion"
+          :loading="cargandoConsecutivo"
+        >
+          <template #suffix>
+            <el-icon v-if="cargandoConsecutivo" class="is-loading">
+              <Loading />
+            </el-icon>
+          </template>
+        </el-input>
       </el-col>
       <el-col :span="4">
-        <el-button @click="toggleModoManual" type="warning">
+        <el-button 
+          @click="toggleModoManual" 
+          type="warning"
+          :disabled="modoEdicion"
+        >
           {{ modoManual ? 'Automático' : 'Manual' }}
         </el-button>
       </el-col>
@@ -35,13 +51,21 @@
     <!-- Tabla editable -->
     <el-table :data="form.detalles" border style="width: 100%;">
       <el-table-column label="Cuenta">
-        <template #default="{ row }">
+        <template #default="{ row, $index }">
           <el-autocomplete
             v-model="row.cuenta"
             :fetch-suggestions="fetchSuggestions"
             placeholder="Código o nombre de cuenta"
             clearable
             @select="item => handleSelectCuenta(row)(item)"
+          />
+          <el-button
+            v-if="form.detalles.length > 1"
+            type="danger"
+            icon="el-icon-delete"
+            size="mini"
+            @click="eliminarFila($index)"
+            style="margin-top: 5px;"
           />
         </template>
       </el-table-column>
@@ -104,7 +128,14 @@
     </el-row>
 
     <el-row justify="end" style="margin-top: 20px;">
-      <el-button type="primary" :disabled="diferencia !== 0" @click="guardarAsiento">Guardar</el-button>
+      <el-button 
+        type="primary" 
+        :disabled="diferencia !== 0 || !form.tipo || !form.consecutivo" 
+        @click="guardarAsiento"
+        :loading="guardando"
+      >
+        {{ modoEdicion ? 'Actualizar' : 'Guardar' }}
+      </el-button>
       <el-button @click="cancelar">Cancelar</el-button>
     </el-row>
   </div>
@@ -112,231 +143,217 @@
 
 <script setup>
 import { reactive, ref, computed, onMounted, watch } from 'vue'
-import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import api from '@/api';
+import api from '@/api'
 
-const emit = defineEmits(['asientoGuardado'])
+const props = defineProps({
+  asiento: { type: Object, default: null },
+  modoEdicion: { type: Boolean, default: false }
+})
+
+const emit = defineEmits(['asientoGuardado', 'cancelar'])
 
 const form = reactive({
   tipo: '',
   fecha: '',
   factura: '',
   consecutivo: '',
-  detalles: [{
-    cuenta: '',
-    nombreCuenta: '',
-    tercero_id: null,
-    tercero_nombre: '',
-    concepto: '',
-    debito: 0,
-    credito: 0,
-    saldo: 0,
-  }],
+  detalles: [{ cuenta: '', nombreCuenta: '', tercero_id: null, tercero_nombre: '', concepto: '', debito: 0, credito: 0, saldo: 0 }]
 })
 
 const modoManual = ref(false)
 const cuentasContables = ref([])
+const guardando = ref(false)
+const cargandoConsecutivo = ref(false)
 
-const cargarCuentasContables = async () => {
+const cargarConsecutivoPorTipo = async (tipo) => {
+  if (!tipo) return;
+
+  cargandoConsecutivo.value = true;
+
   try {
-     const response = await api.get('/cuentas-contables')
-    cuentasContables.value = response.data
+    const empresaId = localStorage.getItem('empresa_id');
+    if (!empresaId) throw new Error('Empresa no definida');
+
+    const { data } = await api.get(`/asientos/ultimo-consecutivo/${tipo}`, {
+      headers: { empresa_id: empresaId }
+    });
+
+    // ✅ CORRECCIÓN: Si el consecutivo es 0, asignamos 1 para el NUEVO asiento
+    if (data?.consecutivo === 0 || data?.consecutivo === undefined) {
+      form.consecutivo = 1;
+      console.log('Primer asiento de este tipo, consecutivo asignado: 1');
+    } else {
+      // Si ya hay asientos, usamos el último + 1 para el NUEVO
+      form.consecutivo = data.consecutivo + 1;
+      console.log('Siguiente consecutivo:', form.consecutivo);
+    }
+
   } catch (error) {
-    console.error('Error al cargar cuentas contables:', error)
+    // Si es 404, significa que no hay asientos todavía, asignamos 1
+    if (error.response?.status === 404) {
+      form.consecutivo = 1;
+      console.warn('No existen asientos previos, se asigna consecutivo 1');
+    } else {
+      console.error('Error al obtener consecutivo por tipo:', error);
+      ElMessage.error('Error al obtener consecutivo por tipo');
+      form.consecutivo = '';
+    }
+  } finally {
+    cargandoConsecutivo.value = false;
+  }
+};
+
+
+// Watch para tipo de asiento
+watch(() => form.tipo, (nuevoTipo, viejoTipo) => {
+  if (!props.modoEdicion && nuevoTipo && nuevoTipo !== viejoTipo && !modoManual.value) {
+    cargarConsecutivoPorTipo(nuevoTipo)
+  }
+})
+
+// Cargar asiento para edición
+watch(() => props.asiento, (nuevo) => {
+  if (nuevo && props.modoEdicion) {
+    cargarDatosAsiento(nuevo)
+  }
+}, { immediate: true })
+
+const cargarDatosAsiento = async (asientoData) => {
+  try {
+    if (asientoData && asientoData.length > 0) {
+      const primerDetalle = asientoData[0]
+      form.tipo = primerDetalle.tipo
+      form.fecha = primerDetalle.fecha
+      form.factura = primerDetalle.factura
+      form.consecutivo = primerDetalle.consecutivo
+      modoManual.value = true
+      await cargarCuentasContables()
+      form.detalles = asientoData.map(item => ({
+        id: item.id,
+        cuenta: item.cuenta,
+        nombreCuenta: obtenerNombreCuenta(item.cuenta),
+        tercero_id: item.tercero_id,
+        tercero_nombre: item.tercero ? (item.tercero.razon_social || `${item.tercero.nombres} ${item.tercero.apellidos}`) : '',
+        concepto: item.concepto,
+        debito: parseFloat(item.debito),
+        credito: parseFloat(item.credito),
+        saldo: parseFloat(item.debito) - parseFloat(item.credito)
+      }))
+    }
+  } catch (error) {
+    console.error('Error al cargar datos del asiento:', error)
+    ElMessage.error('Error al cargar el asiento')
   }
 }
 
-const cargarConsecutivo = async () => {
+const obtenerNombreCuenta = (codigo) => {
+  const cuenta = cuentasContables.value.find(c => c.codigo === codigo)
+  return cuenta ? cuenta.nombre : 'Cuenta no encontrada'
+}
+
+const cargarCuentasContables = async () => {
   try {
-    const response = await api.get('/asientos/ultimo-consecutivo')
-    form.consecutivo = response.data.consecutivo + 1
+    const empresaId = localStorage.getItem('empresa_id')
+    const globales = await api.get('/cuentas/contables')
+    const empresa = await api.get(`/empresas/${empresaId}/cuentas-todas`)
+    cuentasContables.value = [
+      ...globales.data.map(c => ({ codigo: c.codigo, nombre: c.nombre })),
+      ...empresa.data.map(c => ({ codigo: c.codigo, nombre: c.nombre }))
+    ]
   } catch (error) {
-    console.error('Error al obtener consecutivo:', error)
+    console.error('Error al cargar cuentas contables:', error)
+    ElMessage.error('Error al cargar cuentas contables')
   }
+}
+
+const totalDebito = computed(() => form.detalles.reduce((acc, i) => acc + Number(i.debito), 0))
+const totalCredito = computed(() => form.detalles.reduce((acc, i) => acc + Number(i.credito), 0))
+const diferencia = computed(() => totalDebito.value - totalCredito.value)
+
+const agregarFila = () => form.detalles.push({ cuenta: '', nombreCuenta: '', tercero_id: null, tercero_nombre: '', concepto: '', debito: 0, credito: 0, saldo: 0 })
+const eliminarFila = (i) => { if (form.detalles.length > 1) form.detalles.splice(i, 1) }
+
+const buscarTerceros = async (query, cb) => {
+  if (!query || query.length < 2) { cb([]); return }
+  try {
+    const response = await api.get('/dato_clientes/getdata')
+    const clientes = Array.isArray(response.data) ? response.data : response.data.data || []
+    const resultados = clientes.filter(c => {
+      const campos = [c.nombres, c.apellidos, c.razon_social, c.identificacion, c.email, c.telefono].map(s => s?.toLowerCase() || '')
+      return campos.some(s => s.includes(query.toLowerCase()))
+    }).map(c => ({
+      value: c.razon_social || [c.nombres, c.apellidos].filter(Boolean).join(' '),
+      id: c.id,
+      datos: c
+    }))
+    cb(resultados)
+  } catch { cb([]) }
+}
+
+const handleSelectTercero = (row, item) => { row.tercero_id = item.id; row.tercero_nombre = item.value }
+
+const fetchSuggestions = (query, cb) => {
+  if (!query) return cb([])
+  const results = cuentasContables.value.filter(c => c.codigo.toLowerCase().includes(query.toLowerCase()) || c.nombre.toLowerCase().includes(query.toLowerCase()))
+    .map(c => ({ value: `${c.codigo} - ${c.nombre}`, label: `${c.codigo} - ${c.nombre}`, codigo: c.codigo, nombreCuenta: c.nombre }))
+  cb(results)
+}
+
+const handleSelectCuenta = (row) => (item) => { row.cuenta = item.codigo; row.nombreCuenta = item.nombreCuenta }
+
+const guardarAsiento = async () => {
+  if (!form.tipo || !form.consecutivo) return ElMessage.error('Tipo y consecutivo son requeridos')
+  if (form.detalles.some(d => !d.tercero_id)) return ElMessage.error('Seleccione un tercero para todas las filas')
+
+  guardando.value = true
+  try {
+    const empresaId = localStorage.getItem('empresa_id')
+    const payloads = form.detalles.map(d => ({
+      id: d.id,
+      consecutivo: form.consecutivo,
+      tipo: form.tipo,
+      fecha: dayjs(form.fecha).format('YYYY-MM-DD'),
+      factura: form.factura,
+      cuenta: d.cuenta,
+      tercero_id: d.tercero_id,
+      concepto: d.concepto,
+      debito: d.debito,
+      credito: d.credito,
+      saldo: d.debito - d.credito
+    }))
+
+    if (props.modoEdicion) {
+      await api.put(`/asientos/consecutivo/${form.consecutivo}`, { asientos: payloads }, { headers: { empresa_id: empresaId } })
+    } else {
+      await api.post('/asientos/save', { asientos: payloads }, { headers: { empresa_id: empresaId } })
+    }
+
+    ElMessage.success(props.modoEdicion ? 'Asiento actualizado' : 'Asiento creado')
+    emit('asientoGuardado')
+    cancelar()
+  } catch (error) {
+    console.error(error)
+    ElMessage.error(error.response?.data?.error || 'Error al guardar asiento')
+  } finally {
+    guardando.value = false
+  }
+}
+
+const cancelar = () => {
+  form.tipo = ''; form.fecha = ''; form.factura = ''; form.consecutivo = ''; form.detalles = [{ cuenta: '', nombreCuenta: '', tercero_id: null, tercero_nombre: '', concepto: '', debito: 0, credito: 0, saldo: 0 }]
+  modoManual.value = false
+  emit('cancelar')
 }
 
 const toggleModoManual = () => {
   modoManual.value = !modoManual.value
+  if (!modoManual.value && !props.modoEdicion && form.tipo) cargarConsecutivoPorTipo(form.tipo)
 }
 
-watch(modoManual, (nuevoValor) => {
-  if (!nuevoValor) {
-    cargarConsecutivo()
-  }
-})
-
-const totalDebito = computed(() =>
-  form.detalles.reduce((acc, item) => acc + Number(item.debito), 0)
-)
-
-const totalCredito = computed(() =>
-  form.detalles.reduce((acc, item) => acc + Number(item.credito), 0)
-)
-
-const diferencia = computed(() => totalDebito.value - totalCredito.value)
-
-const agregarFila = () => {
-  form.detalles.push({
-    cuenta: '',
-    nombreCuenta: '',
-    tercero_id: null,
-    tercero_nombre: '',
-    concepto: '',
-    debito: 0,
-    credito: 0,
-    saldo: 0,
-  })
-}
-
-const buscarTerceros = async (queryString, cb) => {
-  if (!queryString || queryString.length < 2) {
-    cb([])
-    return
-  }
-
-  try {
-    const response = await api.get('/dato_clientes/getdata');
-    const clientes = Array.isArray(response.data) ? response.data : response.data.data || []
-    const query = queryString.toLowerCase().trim()
-const resultados = clientes
-  .filter(c => {
-    const camposBusqueda = [
-      c.nombres || '',
-      c.apellidos || '', 
-      c.razon_social || '',
-      c.identificacion || '',
-      c.email || '',
-      c.telefono || ''
-    ].map(campo => campo.toLowerCase())
-    
-    const query = queryString.toLowerCase()
-    return camposBusqueda.some(campo => campo.includes(query))
-  })
-  .map(c => {
-    // ✅ Texto principal (razón social o nombre completo)
-    let textoPrincipal = ''
-    if (c.razon_social) {
-      textoPrincipal = c.razon_social
-    } else {
-      textoPrincipal = [c.nombres, c.apellidos]
-        .filter(Boolean) // ✅ Elimina null/undefined
-        .join(' ')
-        .trim()
-    }
-    
-    // ✅ Texto secundario (identificación)
-    const textoSecundario = c.identificacion ? ` - ${c.identificacion}` : ''
-    
-    // ✅ Texto completo para display
-    const displayText = textoPrincipal + textoSecundario
-    
-    return {
-      value: displayText,
-      id: c.id,
-      datos: c
-    }
-  })
-
-    cb(resultados)
-  } catch (error) {
-    console.error('Error al buscar terceros:', error)
-    cb([])
-  }
-}
-
-const handleSelectTercero = (row, item) => {
-  row.tercero_id = item.id
-  row.tercero_nombre = item.value
-  row.tercero_razon_social = item.datos.razon_social
-  row.tercero_identificacion = item.datos.identificacion
-  row.tercero_direccion = item.datos.direccion
-  row.tercero_telefono = item.datos.telefono
-  row.tercero_email = item.datos.email
-}
-
-
-const fetchSuggestions = (queryString, cb) => {
-  if (!Array.isArray(cuentasContables.value)) {
-    cb([])
-    return
-  }
-
-  const results = cuentasContables.value
-    .filter(cuenta => {
-      const query = queryString.toLowerCase()
-      return cuenta.codigo.toLowerCase().includes(query) || cuenta.nombre.toLowerCase().includes(query)
-    })
-    .map(c => ({
-      value: c.codigo,
-      label: `${c.codigo} - ${c.nombre}`,
-      nombreCuenta: c.nombre
-    }))
-
-  cb(results)
-}
-
-const handleSelectCuenta = (row) => (item) => {
-  row.cuenta = item.value
-  row.nombreCuenta = item.nombreCuenta
-}
-
-const guardarAsiento = async () => {
-  const sinTercero = form.detalles.some(item => !item.tercero_id)
-  if (sinTercero) {
-    ElMessage.error('Por favor, selecciona un tercero para todas las filas.')
-    return
-  }
-
-  try {
-    const payloads = form.detalles.map(item => ({
-      consecutivo: form.consecutivo || null,
-      tipo: form.tipo,
-      fecha: dayjs(form.fecha).format('YYYY-MM-DD'),
-      factura: form.factura,
-      cuenta: item.cuenta,
-      tercero_id: item.tercero_id, // ✅ Aquí guardamos el ID
-      concepto: item.concepto,
-      debito: item.debito,
-      credito: item.credito,
-      saldo: item.debito - item.credito,
-    }))
-
-     await api.post('/asientos', { asientos: payloads }) // 👈 usando `api`
-    ElMessage.success('Asiento guardado correctamente')
-    cancelar()
-  } catch (error) {
-    console.error('Error al guardar asiento:', error)
-    ElMessage.error('Error al guardar asiento')
-  }
-}
-
-
-const cancelar = () => {
-  form.tipo = ''
-  form.fecha = ''
-  form.factura = ''
-  form.consecutivo = ''
-  form.detalles = [{
-    cuenta: '',
-    nombreCuenta: '',
-    tercero_id: null,
-    tercero_nombre: '',
-    concepto: '',
-    debito: 0,
-    credito: 0,
-    saldo: 0,
-  }]
-  if (!modoManual.value) cargarConsecutivo()
- emit('cancelar')
-
-}
-
-onMounted(() => {
-  cargarCuentasContables()
-  if (!modoManual.value) cargarConsecutivo()
-})
+onMounted(() => cargarCuentasContables())
 </script>
 
 <style scoped>

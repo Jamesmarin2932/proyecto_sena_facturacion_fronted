@@ -9,7 +9,7 @@
           <el-button
             type="primary"
             icon="el-icon-plus"
-            @click="dialogVisible = true"
+            @click="nuevoAsiento"
             style="margin-right: 10px;"
           >
             Crear Asiento
@@ -77,28 +77,24 @@
           <el-table-column prop="cuenta" label="Cuenta" width="120" />
 
           <el-table-column label="Tercero" min-width="200">
-  <template #default="{ row }">
-    <div v-if="row.tercero">
-      <!-- ✅ Muestra razón social si existe -->
-      <div v-if="row.tercero.razon_social" class="tercero-info">
-        <strong>{{ row.tercero.razon_social }}</strong>
-        <div v-if="row.tercero.identificacion" class="tercero-details">
-          {{ row.tercero.identificacion }}
-        </div>
-      </div>
-      
-      <!-- ✅ Muestra nombre completo si no hay razón social -->
-      <div v-else class="tercero-info">
-        <strong>{{ row.tercero.nombres }} {{ row.tercero.apellidos }}</strong>
-        <div v-if="row.tercero.identificacion" class="tercero-details">
-          {{ row.tercero.identificacion }}
-        </div>
-      </div>
-    </div>
-    
-    <span v-else class="text-muted">-- Sin asignar --</span>
-  </template>
-</el-table-column>
+            <template #default="{ row }">
+              <div v-if="row.tercero">
+                <div v-if="row.tercero.razon_social" class="tercero-info">
+                  <strong>{{ row.tercero.razon_social }}</strong>
+                  <div v-if="row.tercero.identificacion" class="tercero-details">
+                    {{ row.tercero.identificacion }}
+                  </div>
+                </div>
+                <div v-else class="tercero-info">
+                  <strong>{{ row.tercero.nombres }} {{ row.tercero.apellidos }}</strong>
+                  <div v-if="row.tercero.identificacion" class="tercero-details">
+                    {{ row.tercero.identificacion }}
+                  </div>
+                </div>
+              </div>
+              <span v-else class="text-muted">-- Sin asignar --</span>
+            </template>
+          </el-table-column>
 
           <el-table-column label="Fecha" width="120">
             <template #default="{ row }">
@@ -110,16 +106,35 @@
           <el-table-column prop="debito" label="Débito" width="100" />
           <el-table-column prop="credito" label="Crédito" width="100" />
           <el-table-column prop="saldo_actual" label="Saldo" width="100" />
+
+          <!-- Columna de acciones -->
+          <el-table-column fixed="right" label="Acciones" width="120">
+  <template #default="{ row }">
+    <el-button 
+      type="primary" 
+      size="small" 
+      @click="editarAsiento(row.consecutivo, row.tipo)"
+      icon="el-icon-edit"
+    >
+      Editar
+    </el-button>
+  </template>
+</el-table-column>
         </el-table>
 
         <!-- Modal -->
         <el-dialog
-          title="Crear Asiento"
+          :title="modoEdicion ? 'Editar Asiento' : 'Crear Asiento'"
           v-model="dialogVisible"
-          width="50%"
+          width="70%"
           @close="resetFormulario"
         >
-          <CrearAsiento @asientoGuardado="asientoGuardado" />
+          <CrearAsiento 
+            :asiento="asientoSeleccionado"
+            :modoEdicion="modoEdicion"
+            @asientoGuardado="asientoGuardado"
+            @cancelar="cancelarEdicion"
+          />
         </el-dialog>
       </div>
     </template>
@@ -136,6 +151,7 @@ import { saveAs } from 'file-saver'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '@/api';
+import { ElMessage } from 'element-plus'
 
 // Estados
 const filtroTercero = ref('')
@@ -143,28 +159,82 @@ const filtroFecha = ref([null, null])
 const filtroCuenta = ref('')
 const datos = ref([])
 const dialogVisible = ref(false)
+const modoEdicion = ref(false)
+const asientoSeleccionado = ref(null)
 
 // Cargar asientos al iniciar
 const cargarAsientos = async () => {
   try {
     const response = await api.get('/asientos')
-    datos.value = response.data.reverse() // Ordenar descendente
+    datos.value = response.data.reverse()
   } catch (error) {
     console.error('Error al cargar los asientos:', error)
+    ElMessage.error('Error al cargar asientos')
   }
 }
-onMounted(() => {
-  cargarAsientos()
-})
 
-// Filtros
+// Nuevo asiento
+const nuevoAsiento = () => {
+  modoEdicion.value = false
+  asientoSeleccionado.value = null
+  dialogVisible.value = true
+}
+
+// Editar asiento
+
+const editarAsiento = async (consecutivo, tipo) => {
+  try {
+    const empresaId = localStorage.getItem('empresa_id')
+    if (!empresaId) {
+      ElMessage.error('Seleccione una empresa primero')
+      return
+    }
+
+    // ← AGREGAR FILTRO POR TIPO
+    const response = await api.get(`/asientos/consecutivo/${consecutivo}`, {
+      params: { tipo: tipo }, // ← Enviar el tipo como parámetro
+      headers: { 
+        'empresa_id': empresaId,
+        'Accept': 'application/json'
+      }
+    })
+    
+    asientoSeleccionado.value = response.data
+    modoEdicion.value = true
+    dialogVisible.value = true
+    
+  } catch (error) {
+    console.error('Error al cargar asiento:', error)
+    ElMessage.error('Error al cargar asiento para edición')
+  }
+}
+// Cuando se guarda un asiento (nuevo o editado)
+const asientoGuardado = () => {
+  dialogVisible.value = false
+  cargarAsientos() // Recargar la lista
+  ElMessage.success(modoEdicion.value ? 'Asiento actualizado' : 'Asiento creado')
+}
+
+// Cancelar edición
+const cancelarEdicion = () => {
+  dialogVisible.value = false
+  modoEdicion.value = false
+  asientoSeleccionado.value = null
+}
+
+// Resetear formulario
+const resetFormulario = () => {
+  modoEdicion.value = false
+  asientoSeleccionado.value = null
+}
+
+// Resto del código permanece igual...
 const limpiarFiltros = () => {
   filtroTercero.value = ''
   filtroCuenta.value = ''
   filtroFecha.value = [null, null]
 }
 
-// Filtrado con saldo acumulado
 const filtrada = computed(() => {
   const resultado = datos.value.filter((asiento) => {
     const nombreTercero = asiento.tercero
@@ -204,7 +274,6 @@ const filtrada = computed(() => {
   })
 })
 
-// Totales de la tabla
 const getSummaries = ({ columns, data }) => {
   const sums = []
   let totalDebito = 0
@@ -236,27 +305,12 @@ const getSummaries = ({ columns, data }) => {
   return sums
 }
 
-// Guardado de nuevo asiento
-const asientoGuardado = (nuevosAsientos) => {
-  datos.value.unshift(...nuevosAsientos) // Insertar al inicio
-
-  let saldoAcumulado = 0
-  datos.value.forEach((asiento) => {
-    saldoAcumulado += parseFloat(asiento.debito || 0) - parseFloat(asiento.credito || 0)
-    asiento.saldo_actual = saldoAcumulado.toFixed(2)
-  })
-
-  dialogVisible.value = false
-}
-
-// Formato de fecha
 const formatDate = (fecha) => {
   if (!fecha) return ''
   const date = new Date(fecha)
   return date.toLocaleDateString()
 }
 
-// Exportar a Excel
 const exportarExcel = () => {
   const data = filtrada.value.map((item) => ({
     Consecutivo: item.consecutivo,
@@ -282,7 +336,6 @@ const exportarExcel = () => {
   saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'libro_diario.xlsx')
 }
 
-// Exportar a PDF
 const exportarPDF = () => {
   const doc = new jsPDF()
   doc.text('Libro Diario', 14, 10)
@@ -318,4 +371,8 @@ const exportarPDF = () => {
 
   doc.save('libro_diario.pdf')
 }
+
+onMounted(() => {
+  cargarAsientos()
+})
 </script>

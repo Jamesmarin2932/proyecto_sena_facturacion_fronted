@@ -7,10 +7,9 @@ const api = axios.create({
     'Accept': 'application/json',
     'X-Requested-With': 'XMLHttpRequest'
   },
-  withCredentials: true // ✅ ESTO ES ESENCIAL PARA SANCTUM
+  withCredentials: true
 });
 
-// Interceptor para agregar token y empresa automáticamente
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   const empresaId = localStorage.getItem('empresa_id');
@@ -19,18 +18,17 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   if (empresaId) {
-    config.headers['X-Empresa-Id'] = empresaId;
+    // 👇 nombre que el controlador realmente usa
+    config.headers['empresa_id'] = empresaId;
   }
 
   return config;
 }, (error) => Promise.reject(error));
 
-// Interceptor para manejar errores de autenticación
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Redirigir al login si no está autenticado
       localStorage.removeItem('token');
       localStorage.removeItem('empresa_id');
       localStorage.removeItem('user_data');

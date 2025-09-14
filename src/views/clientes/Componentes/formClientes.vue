@@ -1,7 +1,5 @@
 <template>
   <el-card shadow="hover" class="max-w-4xl mx-auto mt-6 p-6 rounded-2xl">
-    <h2 class="text-xl font-semibold mb-4"></h2>
-
     <el-form
       ref="formRef"
       :model="form"
@@ -50,7 +48,7 @@
           </el-form-item>
         </el-col>
 
-        <!-- Nombres y apellidos (solo si es natural) -->
+        <!-- Nombres / Apellidos -->
         <template v-if="form.tipo_persona === 'natural'">
           <el-col :span="12">
             <el-form-item label="Nombres">
@@ -64,7 +62,7 @@
           </el-col>
         </template>
 
-        <!-- Razón social (solo si es jurídica) -->
+        <!-- Razón social -->
         <template v-if="form.tipo_persona === 'juridica'">
           <el-col :span="24">
             <el-form-item label="Razón Social">
@@ -80,7 +78,7 @@
           </el-form-item>
         </el-col>
 
-        <!-- País, Departamento y Ciudad -->
+        <!-- País / Departamento / Ciudad -->
         <el-col :span="12">
           <el-form-item label="País">
             <CountrySelect v-model="form.pais" />
@@ -119,7 +117,7 @@
           </el-form-item>
         </el-col>
 
-        <!-- Teléfono y Correo -->
+        <!-- Teléfono / Correo -->
         <el-col :span="12">
           <el-form-item label="Teléfono">
             <el-input v-model="form.telefono" />
@@ -132,7 +130,7 @@
           </el-form-item>
         </el-col>
 
-        <!-- Cuenta Gasto/Costo - MEJORADO -->
+        <!-- Cuenta Gasto/Costo -->
         <el-col :span="12">
           <el-form-item label="Cuenta Gasto/Costo">
             <el-select
@@ -152,8 +150,8 @@
                 :label="`${cuenta.codigo} - ${cuenta.nombre}`"
                 :value="cuenta"
               >
-                <span style="float: left; font-weight: bold">{{ cuenta.codigo }}</span>
-                <span style="float: right; color: #8492a6; font-size: 13px; margin-left: 10px">
+                <span style="float:left;font-weight:bold">{{ cuenta.codigo }}</span>
+                <span style="float:right;color:#8492a6;font-size:13px;margin-left:10px">
                   {{ cuenta.nombre }}
                 </span>
               </el-option>
@@ -179,21 +177,20 @@
       <!-- Botones -->
       <div class="flex justify-end mt-6 space-x-3">
         <el-button @click="$emit('cerrarFormulario')">Cancelar</el-button>
-        <el-button type="primary" @click="guardarCliente">Guardar</el-button>
+        <el-button type="primary" @click="submitForm">Guardar</el-button>
       </div>
     </el-form>
   </el-card>
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted, computed } from 'vue'
-import axios from 'axios'
-import api from '@/api' // ✅ Importa tu axios configurado
+import { reactive, ref, watch, onMounted } from 'vue'
 import { CountrySelect, RegionSelect } from 'vue3-country-region-select'
+import api from '@/api'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps({
-  cliente: Object
+  cliente: { type: Object, default: () => ({}) }
 })
 const emit = defineEmits(['guardar', 'cerrarFormulario'])
 
@@ -201,110 +198,85 @@ const formRef = ref(null)
 const formSize = ref('default')
 
 const form = reactive({
-  // ... otros campos existentes ...
-  cuenta_gasto_costo_id: null
+  id: null,
+  tipo_persona: '',
+  tipo_tercero: '',
+  tipo_identificacion: '',
+  numero_identificacion: '',
+  nombres: '',
+  apellidos: '',
+  razon_social: '',
+  direccion: '',
+  pais: '',
+  departamento: '',
+  ciudad: '',
+  codigo_postal: '',
+  telefono: '',
+  correo: '',
+  cuenta_gasto: '',
+  actividad_economica: '',
+  observaciones: ''
 })
-
-// Cuenta seleccionada (objeto completo)
-const cuentaSeleccionada = ref(null)
-
-// Watcher para sincronizar con el formulario
-watch(cuentaSeleccionada, (nuevaCuenta) => {
-  if (nuevaCuenta) {
-    form.cuenta_gasto_costo_id = nuevaCuenta.id
-  } else {
-    form.cuenta_gasto_costo_id = null
-  }
-})
-
-// Watcher para cuando editas un cliente existente
-watch(() => props.cliente, (nuevoCliente) => {
-  if (nuevoCliente && nuevoCliente.cuenta_gasto_costo_id) {
-    // Buscar la cuenta correspondiente al ID guardado
-    const cuentaEncontrada = cuentasContables.value.find(
-      cuenta => cuenta.id === nuevoCliente.cuenta_gasto_costo_id
-    )
-    if (cuentaEncontrada) {
-      cuentaSeleccionada.value = cuentaEncontrada
-    }
-  } else {
-    cuentaSeleccionada.value = null
-  }
-}, { immediate: true })
-
-// ... rules existentes ...
 
 const ciudades = ref([])
-const countryCodes = {
-  Colombia: 'co',
-  México: 'mx',
-  Argentina: 'ar',
-  Perú: 'pe',
-  Chile: 'cl',
-  Ecuador: 'ec',
-  Venezuela: 've',
-  Panamá: 'pa',
-  Uruguay: 'uy',
-}
-
-// ... watch de ciudades y código postal ...
-
-/* ------------------ ✅ CUENTAS CONTABLES - CON SANCTUM ------------------ */
 const cuentasContables = ref([])
 const cuentasContablesFiltradas = ref([])
 const cargandoCuentas = ref(false)
+const cuentaSeleccionada = ref(null)
+
+watch(
+  () => props.cliente,
+  (val) => {
+    Object.assign(form, val || {})
+    if (val && val.cuenta_gasto) {
+      const cuenta = cuentasContables.value.find(c => c.id === val.cuenta_gasto)
+      cuentaSeleccionada.value = cuenta || null
+    }
+  },
+  { immediate: true }
+)
+
+watch(cuentaSeleccionada, (nuevaCuenta) => {
+  form.cuenta_gasto = nuevaCuenta
+    ? `${nuevaCuenta.codigo} - ${nuevaCuenta.nombre}`
+    : ''
+})
 
 const cargarCuentasContables = async () => {
   try {
     cargandoCuentas.value = true
-    
-    // ✅ Usa tu api configurada
-    const response = await api.get('/cuentas')
-    
-    cuentasContables.value = response.data
-    cuentasContablesFiltradas.value = cuentasContables.value
-    
-    // Si estamos editando un cliente, buscar su cuenta
-    if (props.cliente && props.cliente.cuenta_gasto_costo_id) {
-      const cuentaExistente = cuentasContables.value.find(
-        cuenta => cuenta.id === props.cliente.cuenta_gasto_costo_id
-      )
-      if (cuentaExistente) {
-        cuentaSeleccionada.value = cuentaExistente
-      }
-    }
-  } catch (error) {
-    console.error('Error al cargar cuentas contables:', error)
-    if (error.response?.status === 401) {
-      ElMessage.error('Sesión expirada. Por favor inicie sesión nuevamente.')
-    } else {
-      ElMessage.error('Error al cargar las cuentas contables')
-    }
-    cuentasContables.value = []
+    const { data } = await api.get('/cuentas/contables')
+    cuentasContables.value = data
+    cuentasContablesFiltradas.value = data
+  } catch (e) {
+    ElMessage.error('Error al cargar las cuentas contables')
   } finally {
     cargandoCuentas.value = false
   }
 }
 
-const buscarCuentas = (query) => {
+function buscarCuentas(query) {
   if (!query) {
     cuentasContablesFiltradas.value = cuentasContables.value
     return
   }
-  
   const q = query.toLowerCase().trim()
-  cuentasContablesFiltradas.value = cuentasContables.value.filter(c =>
-    c.codigo.toLowerCase().includes(q) || 
-    c.nombre.toLowerCase().includes(q)
+  cuentasContablesFiltradas.value = cuentasContables.value.filter(
+    c => c.codigo.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q)
   )
 }
 
-onMounted(() => {
-  cargarCuentasContables()
-})
+onMounted(cargarCuentasContables)
 
+const rules = {
+  tipo_persona: [{ required: true, message: 'Seleccione tipo de persona', trigger: 'change' }],
+  tipo_tercero: [{ required: true, message: 'Seleccione tipo de tercero', trigger: 'change' }],
+  tipo_identificacion: [{ required: true, message: 'Seleccione tipo de ID', trigger: 'change' }],
+  numero_identificacion: [{ required: true, message: 'Ingrese número de ID', trigger: 'blur' }],
+  direccion: [{ required: true, message: 'Ingrese la dirección', trigger: 'blur' }]
+}
 
-const guardarCliente = () => {
+function submitForm() {
   formRef.value.validate((valid) => {
     if (!valid) return
     emit('guardar', { ...form })
@@ -313,12 +285,9 @@ const guardarCliente = () => {
 </script>
 
 <style scoped>
-/* Mejorar la visualización de las opciones */
 .el-select-dropdown__item {
   display: flex;
   justify-content: space-between;
   padding: 8px 20px;
 }
 </style>
-
-
