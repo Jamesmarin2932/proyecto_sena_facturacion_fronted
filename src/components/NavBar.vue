@@ -20,10 +20,9 @@
 
     <div class="flex-spacer"></div>
 
-    <!-- Menú de usuario -->
+    <!-- Menú de usuario (solo nombre, sin foto) -->
     <el-sub-menu index="1">
       <template #title>
-        <img :src="userPhoto" class="user-photo" alt="Perfil" />
         <span>{{ username.toUpperCase() }}</span>
       </template>
       <el-menu-item index="2-1">Perfil</el-menu-item>
@@ -38,40 +37,36 @@ export default {
     return {
       activeIndex: '0',
       username: '',
-      userPhoto: '',
       empresaNombre: ''
-    };
+    }
   },
   mounted() {
-    this.loadUserData();
-    this.loadEmpresa();
-    // Escuchar cambios en localStorage (por si cambia la empresa en otra vista)
-    window.addEventListener('storage', this.loadEmpresa);
+    this.loadUserData()
+    this.loadEmpresa()
+    window.addEventListener('storage', this.loadEmpresa)
   },
   beforeUnmount() {
-    window.removeEventListener('storage', this.loadEmpresa);
+    window.removeEventListener('storage', this.loadEmpresa)
   },
   watch: {
     '$route': 'loadUserData'
   },
   methods: {
     loadUserData() {
-      this.username = localStorage.getItem('username') || 'Usuario';
-      this.userPhoto = localStorage.getItem('userPhoto') || 'https://i.pravatar.cc/40';
+      this.username = localStorage.getItem('username') || 'Usuario'
     },
     loadEmpresa() {
-      // Ahora toma el nombre_comercial
-      this.empresaNombre = localStorage.getItem('empresa_nombre') || '';
+      this.empresaNombre = localStorage.getItem('empresa_nombre') || ''
     },
     handleSelect(index) {
-      console.log(index);
+      console.log(index)
     },
     logout() {
-      localStorage.clear();
-      this.$router.push({ name: 'inicio' });
+      localStorage.clear()
+      this.$router.push({ name: 'inicio' })
     }
   }
-};
+}
 </script>
 
 <style scoped>
@@ -116,21 +111,11 @@ export default {
   letter-spacing: 1px;
 }
 
-.user-photo {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  margin-right: 8px;
-  object-fit: cover;
-  vertical-align: middle;
-}
-
 .el-menu-demo ::v-deep(.el-sub-menu__title) {
   font-weight: 500;
   font-size: 15px;
   display: flex;
   align-items: center;
-  gap: 8px;
   transition: background-color 0.3s;
 }
 
