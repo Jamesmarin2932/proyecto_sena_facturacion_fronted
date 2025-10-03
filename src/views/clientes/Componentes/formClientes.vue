@@ -164,7 +164,25 @@
         <!-- Actividad Económica -->
         <el-col :span="24">
           <el-form-item label="Actividad Económica">
-            <el-input v-model="form.actividad_economica" />
+            <el-select
+              v-model="form.actividad_economica"
+              filterable
+              allow-create
+              default-first-option
+              placeholder="Seleccione una actividad"
+            >
+              <el-option
+                v-for="actividad in actividades"
+                :key="actividad.codigo"
+                :label="`${actividad.codigo} - ${actividad.descripcion}`"
+                :value="actividad.codigo"
+              >
+                <span style="float:left;font-weight:bold">{{ actividad.codigo }}</span>
+                <span style="float:right;color:#8492a6;font-size:13px;margin-left:10px">
+                  {{ actividad.descripcion }}
+                </span>
+              </el-option>
+            </el-select>
           </el-form-item>
         </el-col>
 
@@ -190,6 +208,7 @@ import { reactive, ref, watch, onMounted } from 'vue'
 import { CountrySelect, RegionSelect } from 'vue3-country-region-select'
 import api from '@/api'
 import { ElMessage } from 'element-plus'
+import Papa from 'papaparse'
 
 const props = defineProps({
   cliente: { type: Object, default: () => ({}) }
@@ -224,80 +243,26 @@ const ciudades = ref([])
 const cuentasContables = ref([])
 const cuentasContablesFiltradas = ref([])
 const cargandoCuentas = ref(false)
-
-// ahora cuentaSeleccionada guarda el `id` de la cuenta (número/string) o un texto libre cuando el usuario crea
 const cuentaSeleccionada = ref(null)
+const actividades = ref([])
 
-/* cuando llega props.cliente solo asignamos al form; la selección de cuenta
-   la inicializamos después de que se carguen las cuentas (ver watcher de cuentasContables) */
+// Watchers
 watch(
   () => props.cliente,
-  (val) => {
-    Object.assign(form, val || {})
-  },
+  (val) => { Object.assign(form, val || {}) },
   { immediate: true }
 )
 
-/* cuando cambia la selección: puede ser
-   - null -> limpiar
-   - string (texto libre creado por allow-create) -> guardarlo tal cual
-   - id (número/string) -> buscar la cuenta por id y armar el label en form.cuenta_gasto
-*/
 watch(cuentaSeleccionada, (nueva) => {
-  if (nueva === null || nueva === undefined || nueva === '') {
+  if (!nueva) {
     form.cuenta_gasto = ''
     return
   }
-
-  if (typeof nueva === 'string') {
-    // podría ser un id en texto o un texto libre; intentamos resolver a cuenta por id primero
-    const byId = cuentasContables.value.find(c => String(c.id) === nueva)
-    if (byId) {
-      form.cuenta_gasto = `${byId.codigo} - ${byId.nombre}`
-    } else {
-      // texto libre
-      form.cuenta_gasto = nueva
-    }
-    return
-  }
-
-  // si es número (o cualquier otro tipo), buscar por id
   const encontrada = cuentasContables.value.find(c => c.id === nueva || String(c.id) === String(nueva))
-  if (encontrada) {
-    form.cuenta_gasto = `${encontrada.codigo} - ${encontrada.nombre}`
-  } else {
-    form.cuenta_gasto = ''
-  }
+  form.cuenta_gasto = encontrada ? `${encontrada.codigo} - ${encontrada.nombre}` : nueva
 })
 
-/* cuando las cuentas se cargan, si el cliente ya trae cuenta_gasto intentamos
-   seleccionar la cuenta correspondiente (por id o por label), si no, dejamos el texto */
-watch(cuentasContables, (lista) => {
-  if (!lista || !lista.length) return
-
-  const val = props.cliente && props.cliente.cuenta_gasto
-  if (!val) return
-
-  // buscar por id
-  let encontrada = lista.find(c => c.id === val || String(c.id) === String(val))
-  if (encontrada) {
-    cuentaSeleccionada.value = encontrada.id
-    return
-  }
-
-  // buscar por label "codigo - nombre" o por codigo
-  encontrada = lista.find(c => `${c.codigo} - ${c.nombre}` === val || c.codigo === val)
-  if (encontrada) {
-    cuentaSeleccionada.value = encontrada.id
-    return
-  }
-
-  // si no se encuentra, dejamos el texto libre
-  if (typeof val === 'string') {
-    cuentaSeleccionada.value = val
-  }
-}, { immediate: true })
-
+// Cuentas contables
 const cargarCuentasContables = async () => {
   try {
     cargandoCuentas.value = true
@@ -310,7 +275,6 @@ const cargarCuentasContables = async () => {
     cargandoCuentas.value = false
   }
 }
-
 function buscarCuentas(query) {
   if (!query) {
     cuentasContablesFiltradas.value = cuentasContables.value
@@ -322,8 +286,27 @@ function buscarCuentas(query) {
   )
 }
 
-onMounted(cargarCuentasContables)
+// Cargar actividades desde CSV
+const cargarActividadesCSV = async () => {
+  try {
+    const response = await fetch('/ciiu.csv')
+    const csvText = await response.text()
+    const resultados = Papa.parse(csvText, { header: true, skipEmptyLines: true, delimiter: ';' })
+    actividades.value = resultados.data
+      .filter(r => r.CODIGO && r.DESCRIPCION)
+      .map(r => ({ codigo: r.CODIGO.trim(), descripcion: r.DESCRIPCION.trim() }))
+  } catch (error) {
+    console.error('Error al cargar CIIU desde CSV:', error)
+  }
+}
 
+// Ciclo de vida
+onMounted(() => {
+  cargarCuentasContables()
+  cargarActividadesCSV()
+})
+
+// Validaciones
 const rules = {
   tipo_persona: [{ required: true, message: 'Seleccione tipo de persona', trigger: 'change' }],
   tipo_tercero: [{ required: true, message: 'Seleccione tipo de tercero', trigger: 'change' }],
@@ -332,8 +315,9 @@ const rules = {
   direccion: [{ required: true, message: 'Ingrese la dirección', trigger: 'blur' }]
 }
 
+// Submit
 function submitForm() {
-  formRef.value.validate((valid) => {
+  formRef.value.validate(valid => {
     if (!valid) return
     emit('guardar', { ...form })
   })
@@ -347,3 +331,4 @@ function submitForm() {
   padding: 8px 20px;
 }
 </style>
+
