@@ -11,12 +11,20 @@
       />
 
       <!-- Formulario para gestión de usuario -->
-      <formulario :titulo="'Gestión de usuarios'" v-model:is-open="mostrarFormulario" :is-edit="editandoFormulario">
-        <template #slotform>
-          <formUsuarios :usuario="usuario" @guardar="guardarUsuario" />
-        </template>
-      </formulario>
-
+      <formulario
+  :titulo="'Gestión de usuarios'"
+  v-model:is-open="mostrarFormulario"
+  :is-edit="editandoFormulario"
+>
+  <template #slotform>
+    <!-- ⬇️ aquí agregamos @cancelar -->
+    <formUsuarios
+      :usuario="usuario"
+      @guardar="guardarUsuario"
+      @cancelar="cerrarFormulario"
+    />
+  </template>
+</formulario>
       <!-- Tabla de usuarios -->
       <div v-if="!mostrarFormulario">
         <el-table :data="usuarios" stripe style="width: 100%">

@@ -136,6 +136,8 @@
             <el-select
               v-model="cuentaSeleccionada"
               filterable
+              allow-create
+              default-first-option
               clearable
               remote
               reserve-keyword
@@ -148,7 +150,7 @@
                 v-for="cuenta in cuentasContablesFiltradas"
                 :key="cuenta.id"
                 :label="`${cuenta.codigo} - ${cuenta.nombre}`"
-                :value="cuenta"
+                :value="cuenta.id"
               >
                 <span style="float:left;font-weight:bold">{{ cuenta.codigo }}</span>
                 <span style="float:right;color:#8492a6;font-size:13px;margin-left:10px">
@@ -222,25 +224,79 @@ const ciudades = ref([])
 const cuentasContables = ref([])
 const cuentasContablesFiltradas = ref([])
 const cargandoCuentas = ref(false)
+
+// ahora cuentaSeleccionada guarda el `id` de la cuenta (número/string) o un texto libre cuando el usuario crea
 const cuentaSeleccionada = ref(null)
 
+/* cuando llega props.cliente solo asignamos al form; la selección de cuenta
+   la inicializamos después de que se carguen las cuentas (ver watcher de cuentasContables) */
 watch(
   () => props.cliente,
   (val) => {
     Object.assign(form, val || {})
-    if (val && val.cuenta_gasto) {
-      const cuenta = cuentasContables.value.find(c => c.id === val.cuenta_gasto)
-      cuentaSeleccionada.value = cuenta || null
-    }
   },
   { immediate: true }
 )
 
-watch(cuentaSeleccionada, (nuevaCuenta) => {
-  form.cuenta_gasto = nuevaCuenta
-    ? `${nuevaCuenta.codigo} - ${nuevaCuenta.nombre}`
-    : ''
+/* cuando cambia la selección: puede ser
+   - null -> limpiar
+   - string (texto libre creado por allow-create) -> guardarlo tal cual
+   - id (número/string) -> buscar la cuenta por id y armar el label en form.cuenta_gasto
+*/
+watch(cuentaSeleccionada, (nueva) => {
+  if (nueva === null || nueva === undefined || nueva === '') {
+    form.cuenta_gasto = ''
+    return
+  }
+
+  if (typeof nueva === 'string') {
+    // podría ser un id en texto o un texto libre; intentamos resolver a cuenta por id primero
+    const byId = cuentasContables.value.find(c => String(c.id) === nueva)
+    if (byId) {
+      form.cuenta_gasto = `${byId.codigo} - ${byId.nombre}`
+    } else {
+      // texto libre
+      form.cuenta_gasto = nueva
+    }
+    return
+  }
+
+  // si es número (o cualquier otro tipo), buscar por id
+  const encontrada = cuentasContables.value.find(c => c.id === nueva || String(c.id) === String(nueva))
+  if (encontrada) {
+    form.cuenta_gasto = `${encontrada.codigo} - ${encontrada.nombre}`
+  } else {
+    form.cuenta_gasto = ''
+  }
 })
+
+/* cuando las cuentas se cargan, si el cliente ya trae cuenta_gasto intentamos
+   seleccionar la cuenta correspondiente (por id o por label), si no, dejamos el texto */
+watch(cuentasContables, (lista) => {
+  if (!lista || !lista.length) return
+
+  const val = props.cliente && props.cliente.cuenta_gasto
+  if (!val) return
+
+  // buscar por id
+  let encontrada = lista.find(c => c.id === val || String(c.id) === String(val))
+  if (encontrada) {
+    cuentaSeleccionada.value = encontrada.id
+    return
+  }
+
+  // buscar por label "codigo - nombre" o por codigo
+  encontrada = lista.find(c => `${c.codigo} - ${c.nombre}` === val || c.codigo === val)
+  if (encontrada) {
+    cuentaSeleccionada.value = encontrada.id
+    return
+  }
+
+  // si no se encuentra, dejamos el texto libre
+  if (typeof val === 'string') {
+    cuentaSeleccionada.value = val
+  }
+}, { immediate: true })
 
 const cargarCuentasContables = async () => {
   try {
@@ -262,7 +318,7 @@ function buscarCuentas(query) {
   }
   const q = query.toLowerCase().trim()
   cuentasContablesFiltradas.value = cuentasContables.value.filter(
-    c => c.codigo.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q)
+    c => (c.codigo && c.codigo.toLowerCase().includes(q)) || (c.nombre && c.nombre.toLowerCase().includes(q))
   )
 }
 

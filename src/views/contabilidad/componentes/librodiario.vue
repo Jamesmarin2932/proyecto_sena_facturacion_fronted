@@ -136,10 +136,7 @@ const asientoSeleccionado = ref(null)
 const cargarAsientos = async () => {
   try {
     const response = await api.get('/asientos')
-    // Ordenar por fecha más reciente primero
-    datos.value = response.data.sort((a, b) => {
-      return new Date(b.fecha) - new Date(a.fecha);
-    });
+    datos.value = response.data.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
   } catch (error) {
     console.error('Error al cargar los asientos:', error)
     ElMessage.error('Error al cargar asientos')
@@ -158,32 +155,45 @@ const limpiarFiltros = () => {
 
 const filtrada = computed(() => {
   const resultado = datos.value.filter(a => {
-    const nombreTercero = a.tercero ? (a.tercero.razon_social || `${a.tercero.nombres} ${a.tercero.apellidos}`).toLowerCase() : ''
+    const nombreTercero = a.tercero
+      ? (a.tercero.razon_social || `${a.tercero.nombres} ${a.tercero.apellidos}`).toLowerCase()
+      : ''
     const cumpleTercero = !filtroTercero.value || nombreTercero.includes(filtroTercero.value.toLowerCase())
     const cumpleCuenta = !filtroCuenta.value || a.cuenta.toLowerCase().includes(filtroCuenta.value.toLowerCase())
-    const cumpleTipo = !filtroTipo.value || a.tipo === filtroTipo.value
+    const cumpleTipo   = !filtroTipo.value || a.tipo === filtroTipo.value
     const cumpleConsec = !filtroConsecutivo.value || String(a.consecutivo).includes(filtroConsecutivo.value)
+
+    // ✅ Ajuste de rango de fechas
     const fecha = new Date(a.fecha)
-    const fDesde = !filtroFecha.value[0] || fecha >= new Date(filtroFecha.value[0])
-    const fHasta = !filtroFecha.value[1] || fecha <= new Date(filtroFecha.value[1])
-    return cumpleTercero && cumpleCuenta && cumpleTipo && cumpleConsec && fDesde && fHasta
+
+    let fDesdeOk = true
+    let fHastaOk = true
+    if (filtroFecha.value[0]) {
+      const inicio = new Date(filtroFecha.value[0])
+      inicio.setHours(0, 0, 0, 0)           // <-- medianoche
+      fDesdeOk = fecha >= inicio
+    }
+    if (filtroFecha.value[1]) {
+      const fin = new Date(filtroFecha.value[1])
+      fin.setHours(23, 59, 59, 999)         // <-- final del día
+      fHastaOk = fecha <= fin
+    }
+
+    return cumpleTercero && cumpleCuenta && cumpleTipo && cumpleConsec && fDesdeOk && fHastaOk
   })
-  
-  // Ordenar por fecha más reciente primero (por si los filtros alteran el orden)
-  const resultadoOrdenado = resultado.sort((a, b) => {
-    return new Date(b.fecha) - new Date(a.fecha);
-  });
-  
+
   // saldo acumulado
   let saldos = {}
-  return resultadoOrdenado.map(asiento => {
-    const c = asiento.cuenta
-    const d = parseFloat(asiento.debito || 0)
-    const cr = parseFloat(asiento.credito || 0)
-    if (!saldos[c]) saldos[c] = 0
-    saldos[c] += d - cr
-    return { ...asiento, saldo_actual: saldos[c].toFixed(2) }
-  })
+  return resultado
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    .map(asiento => {
+      const c = asiento.cuenta
+      const d = parseFloat(asiento.debito || 0)
+      const cr = parseFloat(asiento.credito || 0)
+      if (!saldos[c]) saldos[c] = 0
+      saldos[c] += d - cr
+      return { ...asiento, saldo_actual: saldos[c].toFixed(2) }
+    })
 })
 
 /* ========= ACCIONES ========= */
@@ -235,64 +245,94 @@ const formatDate = f => f ? new Date(f).toLocaleDateString() : ''
 
 /* ========= EXPORTAR TODO ========= */
 const exportarExcel = () => {
-  const ws = XLSX.utils.json_to_sheet(filtrada.value)
+  const datosExport = filtrada.value.map(a => ({
+    Consecutivo: a.consecutivo,
+    Tipo: a.tipo,
+    Cuenta: a.cuenta,
+    Tercero: a.tercero ? (a.tercero.razon_social || `${a.tercero.nombres} ${a.tercero.apellidos}`) : '',
+    Fecha: formatDate(a.fecha),
+    Concepto: a.concepto,
+    Débito: a.debito,
+    Crédito: a.credito,
+    Saldo: a.saldo_actual
+  }))
+  const ws = XLSX.utils.json_to_sheet(datosExport)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'LibroDiario')
   const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
   saveAs(new Blob([buf], { type: 'application/octet-stream' }), 'libro_diario.xlsx')
 }
-const exportarPDF = () => {
-  const doc = new jsPDF()
-  doc.text('Libro Diario', 14, 15)
-  autoTable(doc, {
-    head: [['Consec', 'Tipo', 'Cuenta', 'Tercero', 'Fecha', 'Concepto', 'Débito', 'Crédito']],
-    body: filtrada.value.map(a => [
-      a.consecutivo,
-      a.tipo,
-      a.cuenta,
-      a.tercero ? (a.tercero.razon_social || `${a.tercero.nombres} ${a.tercero.apellidos}`) : '',
-      formatDate(a.fecha),
-      a.concepto,
-      a.debito,
-      a.credito
-    ])
-  })
-  doc.save('libro_diario.pdf')
-}
 
-/* ========= NUEVO: EXPORTAR SOLO UN ASIENTO ========= */
+/* ========= NUEVO: EXPORTAR UN ASIENTO DETALLADO ========= */
 const exportarAsientoPDF = async (tipo, consecutivo) => {
   try {
     const empresaId = localStorage.getItem('empresa_id')
     if (!empresaId) return ElMessage.error('Seleccione una empresa primero')
+
+    // data es un ARRAY de movimientos
     const { data } = await api.get(`/asientos/${tipo}/${consecutivo}`, {
       headers: { empresa_id: empresaId }
     })
-    if (!Array.isArray(data) || !data.length) return ElMessage.error('Asiento no encontrado')
 
-    const doc = new jsPDF()
-    const a0 = data[0]
-    doc.text(`Asiento ${a0.tipo}-${a0.consecutivo}`, 14, 15)
-    doc.text(`Fecha: ${formatDate(a0.fecha)}`, 14, 25)
-    doc.text(`Factura: ${a0.factura || '---'}`, 14, 35)
+    if (!Array.isArray(data) || data.length === 0) {
+      return ElMessage.error('No se encontraron registros para este asiento')
+    }
+
+    // Datos generales: todos los movimientos comparten estos campos
+    const primer = data[0]
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+
+    doc.setFontSize(16)
+    doc.text('COMPROBANTE DE ASIENTO CONTABLE', 300, 40, { align: 'center' })
+
+    doc.setFontSize(10)
+    doc.text(`No. Comprobante: ${primer.consecutivo}`, 40, 70)
+    doc.text(`Tipo: ${primer.tipo}`, 200, 70)
+    doc.text(`Fecha: ${formatDate(primer.fecha)}`, 350, 70)
+
+    if (primer.tercero) {
+      const t = primer.tercero
+      const nombreTercero = t.razon_social || `${t.nombres} ${t.apellidos}`
+      doc.text(`Tercero: ${nombreTercero}`, 40, 90)
+      doc.text(`Identificación: ${t.numero_identificacion || ''}`, 40, 105)
+    }
+
+    doc.text(`Concepto: ${primer.concepto || ''}`, 40, 125)
+
+    // Detalle de cuentas
+    const body = data.map(d => [
+      d.cuenta,
+      d.tercero ? (d.tercero.razon_social || `${d.tercero.nombres} ${d.tercero.apellidos}`) : '',
+      d.concepto || '',
+      parseFloat(d.debito).toLocaleString(),
+      parseFloat(d.credito).toLocaleString()
+    ])
+
     autoTable(doc, {
-      startY: 45,
-      head: [['Cuenta', 'Tercero', 'Concepto', 'Débito', 'Crédito']],
-      body: data.map(i => [
-        i.cuenta,
-        i.tercero ? (i.tercero.razon_social || `${i.tercero.nombres} ${i.tercero.apellidos}`) : '',
-        i.concepto,
-        i.debito,
-        i.credito
-      ])
+      startY: 150,
+      head: [['Cuenta', 'Tercero', 'Detalle', 'Débito', 'Crédito']],
+      body,
+      foot: [[
+        '', '', 'TOTALES',
+        data.reduce((s, i) => s + parseFloat(i.debito), 0).toLocaleString(),
+        data.reduce((s, i) => s + parseFloat(i.credito), 0).toLocaleString()
+      ]]
     })
-    doc.save(`Asiento-${a0.tipo}-${a0.consecutivo}.pdf`)
+
+    const finalY = doc.lastAutoTable.finalY + 40
+    doc.text('Preparado por: _______________________', 40, finalY)
+    doc.text('Revisado por: _______________________', 300, finalY)
+    doc.text('Aprobado por: _______________________', 40, finalY + 30)
+
+    doc.save(`Asiento-${primer.tipo}-${primer.consecutivo}.pdf`)
   } catch (e) {
     console.error(e)
-    ElMessage.error('No se pudo generar el PDF del asiento')
+    ElMessage.error('No se pudo generar el PDF detallado')
   }
 }
+
 </script>
+
 
 <style scoped>
 .libro-diario-container {

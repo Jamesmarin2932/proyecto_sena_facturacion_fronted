@@ -163,16 +163,28 @@
           {{ props.modoEdicion ? 'Actualizar' : 'Guardar' }}
         </el-button>
       </el-col>
+
+      <el-col :span="3" v-if="props.modoEdicion">
+  <el-button
+    type="danger"
+    :loading="guardando"
+    @click="eliminarAsiento"
+  >
+    Eliminar
+  </el-button>
+</el-col>
+
     </el-row>
   </div>
 </template>
 
 <script setup>
 import { reactive, ref, computed, onMounted, watch, nextTick } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading, Delete } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import api from '@/api'
+
 
 const props = defineProps({
   asiento: { type: Object, default: null },
@@ -377,6 +389,37 @@ function cancelar() {
   modoManual.value = false
   emit('cancelar')
 }
+
+
+async function eliminarAsiento() {
+  try {
+    await ElMessageBox.confirm(
+      '¿Estás seguro de eliminar este asiento completo?',
+      'Confirmar eliminación',
+      { type: 'warning' }
+    )
+
+    guardando.value = true
+    const empresaId = localStorage.getItem('empresa_id')
+
+    await api.delete(`/asientos/${form.tipo}/${form.consecutivo}`, {
+      headers: { empresa_id: empresaId }
+    })
+
+    ElMessage.success('Asiento eliminado correctamente')
+    emit('asientoGuardado') // refresca lista en padre
+    cancelar() // cierra modal
+  } catch (err) {
+    if (err !== 'cancel') {
+      console.error(err)
+      ElMessage.error('Error al eliminar asiento')
+    }
+  } finally {
+    guardando.value = false
+  }
+}
+
+
 
 function toggleModoManual() {
   modoManual.value = !modoManual.value
