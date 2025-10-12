@@ -49,24 +49,22 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { EditPen, Delete } from '@element-plus/icons-vue';
-import axios from 'axios';
 import LayoutMain from '../../components/LayoutMain.vue';
 import headerButton from '../../components/headerButton.vue';
 import formulario from '../../components/formulario.vue';
 import formUsuarios from '../usuarios/componentes/formUsuarios.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import api from '@/api'; // usa la ruta correcta según tu proyecto
+import api from '@/api';
 
 const mostrarFormulario = ref(false);
 const usuarios = ref([]);
 const editandoFormulario = ref(false);
 const usuario = ref({});
 
-// Abrir formulario para nuevo registro
 const abrirFormulario = () => {
   mostrarFormulario.value = true;
   editandoFormulario.value = false;
-  usuario.value = {}; // Limpia el formulario
+  usuario.value = {};
 };
 
 const cerrarFormulario = () => {
@@ -74,51 +72,31 @@ const cerrarFormulario = () => {
   usuario.value = {};
 };
 
-
-// Obtener usuarios del backend
 const getUsuarios = async () => {
   try { 
-    // Verifica que el token se esté enviando
-    const token = localStorage.getItem('token');
-    console.log('Token:', token);
-    
     const response = await api.get('/usuarios');
-    console.log('Respuesta de /usuarios:', response);
-    console.log('Datos recibidos:', response.data);
-    
-    if (response.data && response.data.users) {
+    if (response.data?.users) {
       usuarios.value = response.data.users;
-      console.log('Usuarios cargados:', usuarios.value);
     } else {
       ElMessage.error('Estructura de respuesta inesperada');
     }
   } catch (error) {
-    console.error('Error completo:', {
-      status: error.response?.status,
-      data: error.response?.data,
-      headers: error.response?.headers
-    });
+    console.error('Error al obtener usuarios:', error);
     ElMessage.error('Error al obtener usuarios');
   }
 };
 
-
-// En eliminarFormulario - usa la misma ruta que en tu backend
 const eliminarFormulario = (id) => {
   ElMessageBox.confirm(
-    `¿Está seguro de eliminar el usuario?`, 
+    '¿Está seguro de eliminar el usuario?', 
     'ELIMINAR REGISTRO',
-    {
-      confirmButtonText: 'Sí',
-      cancelButtonText: 'Cancelar',
-      type: 'error',
-    }
+    { confirmButtonText: 'Sí', cancelButtonText: 'Cancelar', type: 'error' }
   )
   .then(async () => {
     try {
-      await api.delete(`/usuarios/${id}`); // ✅ Ruta correcta
+      await api.delete(`/usuarios/${id}`);
       ElMessage.success('Usuario eliminado con éxito');
-      getUsuarios();
+      await getUsuarios();
     } catch (error) {
       ElMessage.error('Error al eliminar el usuario');
     }
@@ -128,30 +106,18 @@ const eliminarFormulario = (id) => {
   });
 };
 
-// En editarFormulario - usa la misma ruta
 const editarFormulario = async (id) => {
   mostrarFormulario.value = true;
   editandoFormulario.value = true;
-
   try {
-    const response = await api.get(`/usuarios/${id}`); // ✅ Ruta correcta
-    // El backend devuelve: { user: {...} }
+    const response = await api.get(`/usuarios/${id}`);
     usuario.value = { ...response.data.user };
   } catch (error) {
     ElMessage.error('Error al obtener los datos del usuario');
   }
 };
 
-// Llamar al cargar
-onMounted(() => {
-  getUsuarios();
-});
-
-
-//guardar usuario
-
 const guardarUsuario = async (payload) => {
-  // Validar campos obligatorios
   if (
     !payload.nombre_usuario ||
     !payload.usuario ||
@@ -161,61 +127,47 @@ const guardarUsuario = async (payload) => {
     return ElMessage.error('Por favor complete todos los campos obligatorios');
   }
 
-  // Validar contraseñas solo si es nuevo
   if (!editandoFormulario.value && payload.password !== payload.password_confirmation) {
     return ElMessage.error('Las contraseñas no coinciden');
   }
 
   try {
-    let response;
-
     if (editandoFormulario.value) {
-      // 👉 Editar usuario existente
-      response = await api.put(`/users/update/${payload.id}`, payload);
+      await api.put(`/usuarios/${payload.id}`, payload);
       ElMessage.success('Usuario actualizado con éxito');
     } else {
-      // 👉 Crear nuevo usuario
-      response = await api.post('/users/register', payload);
+      await api.post('/usuarios', payload);
       ElMessage.success('Usuario registrado con éxito');
     }
-
-    // Refrescar tabla y cerrar formulario
     await getUsuarios();
     cerrarFormulario();
-
-    return response.data;
   } catch (error) {
-    const msg = error.response?.data?.message || 'Error al guardar usuario';
-    ElMessage.error(msg);
-    console.error('Error al guardar usuario:', error.response?.data || error);
+    ElMessage.error(error.response?.data?.message || 'Error al guardar usuario');
+    console.error('Error al guardar usuario:', error);
   }
 };
 
-
-// En usuarios.vue
 const verificarAccesoEmpresa = async () => {
   try {
-    const empresaId = localStorage.getItem('empresa_activa');
+    const empresaActivaId = localStorage.getItem('empresa_id');
     const response = await api.get('/mis-empresas');
-    
-    console.log('🏢 Empresas del usuario:', response.data);
-    console.log('🔍 ¿Tiene acceso a empresa', empresaId, '?', 
-      response.data.some(empresa => empresa.id == empresaId));
-    
+    console.log('Empresas del usuario:', response.data);
+    console.log('¿Acceso a empresa?', 
+      response.data.some(e => e.id == empresaActivaId)
+    );
   } catch (error) {
     console.error('Error al verificar empresas:', error);
   }
 };
 
-// Llama esta función en mounted
 onMounted(() => {
   verificarAccesoEmpresa();
   getUsuarios();
 });
-
-
-
 </script>
+
+
+
 
 <style scoped>
 /* Estilos personalizados aquí si deseas */

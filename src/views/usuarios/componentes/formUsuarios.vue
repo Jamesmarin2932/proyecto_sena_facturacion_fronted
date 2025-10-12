@@ -48,7 +48,7 @@
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import api from '@/api' // ajusta la ruta si es necesario
 
 const props = defineProps({
   usuario: Object,
@@ -66,11 +66,7 @@ const cargarEmpresas = async () => {
   try {
     const token = localStorage.getItem('token');
 
-    const { data } = await axios.get('http://localhost:8000/api/empresas', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const { data } = await api.get('/empresas')
 
     listaEmpresas.value = data;
   } catch (error) {
