@@ -2,47 +2,43 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true,
+  baseURL: import.meta.env.VITE_API_URL, // apunta a tu backend
+  withCredentials: true, // importante para cookies / sesión
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json'
   }
 });
 
-// Interceptor para añadir token y empresa_id automáticamente
+// Interceptor para enviar token y empresa_id automáticamente
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
-  const empresaId = localStorage.getItem('empresa_id'); // ✅ Cambiado a 'empresa_id'
-  
-  // Debugging: verificar lo que se está enviando
-  console.log('🔄 Enviando request a:', config.url);
+  const empresaId = localStorage.getItem('empresa_id');
+
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (empresaId) config.headers['empresa_id'] = empresaId;
+
+  console.log('🔄 Petición a:', config.url);
   console.log('Token:', token ? '✅ Presente' : '❌ Faltante');
-  console.log('Empresa ID:', empresaId || '❌ No especificada');
-  
-  // Agregar token de autorización
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  
-  // Agregar header de empresa (EXACTO como lo espera el middleware)
-  if (empresaId) {
-    config.headers['empresa_id'] = empresaId;
-    console.log('Header empresa_id enviado:', empresaId);
-  }
-  
+  console.log('Empresa ID:', empresaId ? '✅ Presente' : '❌ Faltante');
+
   return config;
 });
 
-// Interceptor para manejar errores globales
+// Manejo global de errores
 api.interceptors.response.use(
   response => response,
   error => {
-    // Redirigir a login si no está autenticado
+    if (!error.response) {
+      console.error('❌ Network Error', error);
+      alert('No se pudo conectar con el backend. Revisa tu API URL y CORS.');
+    }
+
     if (error.response?.status === 401) {
+      localStorage.clear();
       window.location.href = '/login';
     }
-    
+
     return Promise.reject(error);
   }
 );
