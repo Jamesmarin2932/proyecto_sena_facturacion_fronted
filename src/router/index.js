@@ -6,19 +6,23 @@ import Inicio from '../components/Inicio.vue'
 import SeleccionEmpresa from '../views/SeleccionEmpresa.vue'
 
 // Módulos
-import Clientes from '../views/clientes/clientes.vue'
-import Productos from '../views/productos/productos.vue'
-import Facturas from '../views/Facturas/Facturas.vue'
-import Usuarios from '../views/usuarios/usuarios.vue'
+const Clientes = () => import('../views/clientes/clientes.vue')
+const Productos = () => import('../views/productos/productos.vue')
+const Facturas = () => import('../views/Facturas/Facturas.vue')
+const Usuarios = () => import('../views/usuarios/usuarios.vue')
 
 // Bancos
-import Bancos from '../views/bancos/bancos.vue'
-import DescargarPlantilla from '../views/bancos/componentes/descargador.vue'
-import ImportarMovimientos from '../views/bancos/componentes/importador.vue'
+const Bancos = () => import('../views/bancos/bancos.vue')
+const DescargarPlantilla = () => import('../views/bancos/componentes/descargador.vue')
+const ImportarMovimientos = () => import('../views/bancos/componentes/importador.vue')
 
 // Contabilidad
-import Contabilidad from '../views/contabilidad/contabilidad.vue'
-import LibroDiario from '../views/contabilidad/componentes/librodiario.vue'
+const Contabilidad = () => import('../views/contabilidad/contabilidad.vue')
+const LibroDiario = () => import('../views/contabilidad/componentes/librodiario.vue')
+const GestionCuentas = () => import('../views/contabilidad/componentes/GestionCuentas.vue')
+
+// Empresas
+const Empresas = () => import('../views/empresas/Empresas.vue')
 
 const routes = [
   { path: '/', name: 'inicio', component: Inicio },
@@ -35,16 +39,8 @@ const routes = [
     name: 'bancos',
     component: Bancos,
     children: [
-      {
-        path: 'descargar',
-        name: 'descargarPlantilla',
-        component: DescargarPlantilla
-      },
-      {
-        path: 'importar',
-        name: 'importarMovimientos',
-        component: ImportarMovimientos
-      }
+      { path: 'descargar', name: 'descargarPlantilla', component: DescargarPlantilla },
+      { path: 'importar', name: 'importarMovimientos', component: ImportarMovimientos }
     ]
   },
 
@@ -53,30 +49,16 @@ const routes = [
     path: '/contabilidad',
     name: 'contabilidad',
     component: Contabilidad,
+    redirect: '/contabilidad/librodiario',
     children: [
-      {
-        path: 'librodiario',
-        name: 'librodiario',
-        component: LibroDiario
-      },
-      {
-        path: 'cuentas',
-        name: 'cuentas',
-        component: () => import('../views/contabilidad/componentes/GestionCuentas.vue')
-      }
+      { path: 'librodiario', name: 'librodiario', component: LibroDiario },
+      { path: 'cuentas', name: 'cuentas', component: GestionCuentas }
     ]
   },
 
-  {
-  path: '/empresas',
-  name: 'Empresas',
-  component: () => import('@/views/empresas/Empresas.vue')
-}
-
-
-
+  // Empresas
+  { path: '/empresas', name: 'empresas', component: Empresas }
 ]
-
 
 const router = createRouter({
   history: createWebHistory(),
