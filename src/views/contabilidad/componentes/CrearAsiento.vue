@@ -217,17 +217,30 @@ function obtenerNombreCuenta(codigo) {
 async function cargarCuentasContables() {
   try {
     const empresaId = localStorage.getItem('empresa_id')
-    const globales  = await api.get('/cuentas/contables')
-    const empresa   = await api.get(`/empresas/${empresaId}/cuentas-todas`)
-    cuentasContables.value = [
-      ...globales.data.map(c => ({ codigo: c.codigo, nombre: c.nombre })),
-      ...empresa.data.map(c => ({ codigo: c.codigo, nombre: c.nombre }))
-    ]
-  } catch (err) {
-    console.error('Error al cargar cuentas contables:', err)
-    ElMessage.error('Error al cargar cuentas contables')
+
+    // 1️⃣ Cuentas globales (PUC)
+    const { data: globales } = await api.get('/cuentas/contables')
+
+    // 2️⃣ Cuentas de la empresa
+    const { data: empresa } = await api.get(`/empresas/${empresaId}/cuentas-todas`)
+
+    // 3️⃣ Combinar sin duplicar
+    const mapa = new Map()
+    for (const c of [...globales, ...empresa]) {
+      if (!mapa.has(c.codigo)) mapa.set(c.codigo, { codigo: c.codigo, nombre: c.nombre })
+    }
+
+    cuentasContables.value = Array.from(mapa.values())
+    console.log(`✅ Cargadas ${cuentasContables.value.length} cuentas (Globales + Empresa)`)
+
+  } catch (error) {
+    console.error('Error al cargar cuentas contables:', error)
+    ElMessage.error('Error al cargar las cuentas contables')
   }
 }
+
+
+
 
 async function cargarConsecutivoPorTipo(tipo) {
   if (!tipo) return

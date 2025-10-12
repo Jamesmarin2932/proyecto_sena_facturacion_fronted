@@ -87,7 +87,11 @@ onMounted(() => {
 watch(
   () => props.usuario,
   (nuevo) => {
-    usuarioLocal.value = { ...nuevo }
+    usuarioLocal.value = {
+  ...nuevo,
+  empresas: (nuevo.empresas || []).map(e => e.id) // ✅ solo los IDs
+}
+
   },
   { immediate: true }
 )

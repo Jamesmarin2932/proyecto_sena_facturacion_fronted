@@ -49,7 +49,7 @@
         </div>
 
         <!-- Tabla de datos -->
-        <el-table :data="filtrada" style="width: 100%" border show-summary :summary-method="getSummaries">
+        <el-table :data="paginada" style="width: 100%" border show-summary :summary-method="getSummaries">
           <el-table-column prop="consecutivo" label="Consecutivo" width="100" />
           <el-table-column prop="tipo" label="Tipo" width="80" />
           <el-table-column prop="factura" label="Factura" width="100" />
@@ -96,6 +96,18 @@
           </el-table-column>
         </el-table>
 
+        <!-- 🔹 PAGINACIÓN -->
+        <div style="margin-top: 20px; text-align: center;">
+          <el-pagination
+            background
+            layout="prev, pager, next, jumper, ->, sizes, total"
+            :total="filtrada.length"
+            v-model:current-page="paginaActual"
+            v-model:page-size="registrosPorPagina"
+            :page-sizes="[5, 10, 20, 50]"
+          />
+        </div>
+
         <!-- Modal Crear/Editar -->
         <el-dialog :title="modoEdicion ? 'Editar Asiento' : 'Crear Asiento'" v-model="dialogVisible" width="70%" @close="resetFormulario">
           <CrearAsiento
@@ -113,7 +125,7 @@
 <script setup>
 import LayoutMain from '@/components/LayoutMain.vue'
 import CrearAsiento from '@/views/contabilidad/componentes/CrearAsiento.vue'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api'
 import { ElMessage } from 'element-plus'
 import * as XLSX from 'xlsx'
@@ -131,6 +143,10 @@ const datos = ref([])
 const dialogVisible = ref(false)
 const modoEdicion = ref(false)
 const asientoSeleccionado = ref(null)
+
+/* 🔹 NUEVAS VARIABLES DE PAGINACIÓN */
+const paginaActual = ref(1)
+const registrosPorPagina = ref(10)
 
 /* ========= CARGA ========= */
 const cargarAsientos = async () => {
@@ -151,7 +167,13 @@ const limpiarFiltros = () => {
   filtroFecha.value = [null, null]
   filtroTipo.value = ''
   filtroConsecutivo.value = ''
+  paginaActual.value = 1
 }
+
+/* Cuando cambian los filtros, volver a página 1 */
+watch([filtroTercero, filtroCuenta, filtroFecha, filtroTipo, filtroConsecutivo], () => {
+  paginaActual.value = 1
+})
 
 const filtrada = computed(() => {
   const resultado = datos.value.filter(a => {
@@ -165,17 +187,16 @@ const filtrada = computed(() => {
 
     // ✅ Ajuste de rango de fechas
     const fecha = new Date(a.fecha)
-
     let fDesdeOk = true
     let fHastaOk = true
     if (filtroFecha.value[0]) {
       const inicio = new Date(filtroFecha.value[0])
-      inicio.setHours(0, 0, 0, 0)           // <-- medianoche
+      inicio.setHours(0, 0, 0, 0)
       fDesdeOk = fecha >= inicio
     }
     if (filtroFecha.value[1]) {
       const fin = new Date(filtroFecha.value[1])
-      fin.setHours(23, 59, 59, 999)         // <-- final del día
+      fin.setHours(23, 59, 59, 999)
       fHastaOk = fecha <= fin
     }
 
@@ -194,6 +215,13 @@ const filtrada = computed(() => {
       saldos[c] += d - cr
       return { ...asiento, saldo_actual: saldos[c].toFixed(2) }
     })
+})
+
+/* 🔹 PAGINACIÓN: mostrar solo los registros de la página actual */
+const paginada = computed(() => {
+  const inicio = (paginaActual.value - 1) * registrosPorPagina.value
+  const fin = inicio + registrosPorPagina.value
+  return filtrada.value.slice(inicio, fin)
 })
 
 /* ========= ACCIONES ========= */
@@ -263,13 +291,12 @@ const exportarExcel = () => {
   saveAs(new Blob([buf], { type: 'application/octet-stream' }), 'libro_diario.xlsx')
 }
 
-/* ========= NUEVO: EXPORTAR UN ASIENTO DETALLADO ========= */
+/* ========= EXPORTAR UN ASIENTO DETALLADO ========= */
 const exportarAsientoPDF = async (tipo, consecutivo) => {
   try {
     const empresaId = localStorage.getItem('empresa_id')
     if (!empresaId) return ElMessage.error('Seleccione una empresa primero')
 
-    // data es un ARRAY de movimientos
     const { data } = await api.get(`/asientos/${tipo}/${consecutivo}`, {
       headers: { empresa_id: empresaId }
     })
@@ -278,7 +305,6 @@ const exportarAsientoPDF = async (tipo, consecutivo) => {
       return ElMessage.error('No se encontraron registros para este asiento')
     }
 
-    // Datos generales: todos los movimientos comparten estos campos
     const primer = data[0]
     const doc = new jsPDF({ unit: 'pt', format: 'a4' })
 
@@ -299,7 +325,6 @@ const exportarAsientoPDF = async (tipo, consecutivo) => {
 
     doc.text(`Concepto: ${primer.concepto || ''}`, 40, 125)
 
-    // Detalle de cuentas
     const body = data.map(d => [
       d.cuenta,
       d.tercero ? (d.tercero.razon_social || `${d.tercero.nombres} ${d.tercero.apellidos}`) : '',
@@ -330,9 +355,7 @@ const exportarAsientoPDF = async (tipo, consecutivo) => {
     ElMessage.error('No se pudo generar el PDF detallado')
   }
 }
-
 </script>
-
 
 <style scoped>
 .libro-diario-container {
