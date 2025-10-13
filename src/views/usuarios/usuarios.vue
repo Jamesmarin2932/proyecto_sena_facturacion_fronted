@@ -133,17 +133,20 @@ const guardarUsuario = async (payload) => {
 
   try {
     if (editandoFormulario.value) {
-      await api.put(`/usuarios/${payload.id}`, payload);
+      // ✅ RUTA CORRECTA PARA ACTUALIZAR
+      await api.put(`/users/update/${payload.id}`, payload);
       ElMessage.success('Usuario actualizado con éxito');
     } else {
-      await api.post('/usuarios', payload);
+      // ✅ RUTA CORRECTA PARA CREAR
+      await api.post('/users/register', payload);
       ElMessage.success('Usuario registrado con éxito');
     }
+
     await getUsuarios();
     cerrarFormulario();
   } catch (error) {
-    ElMessage.error(error.response?.data?.message || 'Error al guardar usuario');
     console.error('Error al guardar usuario:', error);
+    ElMessage.error(error.response?.data?.message || 'Error al guardar usuario');
   }
 };
 
