@@ -33,9 +33,24 @@
           </el-form>
         </el-card>
 
+        <!-- 🔹 NUEVO: Barra de búsqueda -->
+        <div class="mb-6 flex justify-between items-center">
+  <div
+    class="flex items-center bg-white shadow-sm rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200 px-4 py-2 w-full max-w-md"
+  >
+    <el-icon color="#409EFF" class="mr-2"><i class="el-icon-search" /></el-icon>
+    <el-input
+      v-model="filtro"
+      placeholder="🔎 Buscar cuenta por código o nombre..."
+      clearable
+      class="flex-1 custom-search-input"
+    />
+  </div>
+</div>
+
         <!-- Tabla de cuentas -->
         <el-card>
-          <el-table :data="cuentas" style="width: 100%">
+          <el-table :data="cuentasFiltradasPaginadas" style="width: 100%">
             <el-table-column prop="codigo" label="Código" width="120" />
             <el-table-column prop="nombre" label="Nombre" />
             <el-table-column label="Origen" width="120">
@@ -68,6 +83,17 @@
               </template>
             </el-table-column>
           </el-table>
+
+          <!-- 🔹 NUEVO: Paginación -->
+          <div class="flex justify-center mt-4">
+            <el-pagination
+              background
+              layout="prev, pager, next"
+              :total="cuentasFiltradas.length"
+              :page-size="pageSize"
+              v-model:current-page="paginaActual"
+            />
+          </div>
         </el-card>
       </div>
     </template>
@@ -76,7 +102,7 @@
 
 <script setup>
 import LayoutMain from '@/components/LayoutMain.vue'
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '@/api'
 import { ElMessage } from 'element-plus'
 
@@ -88,12 +114,32 @@ const modoEdicion = ref(false)
 const cuentaEditandoId = ref(null)
 const formRef = ref()
 
+const filtro = ref('') // 🔹 NUEVO
+const paginaActual = ref(1) // 🔹 NUEVO
+const pageSize = ref(10) // 🔹 NUEVO
+
 const rules = {
   codigo: [{ required: true, message: 'El código es obligatorio', trigger: 'blur' }],
   nombre: [{ required: true, message: 'El nombre es obligatorio', trigger: 'blur' }],
 }
 
-// 🔹 Nueva función: cargar PUC.csv
+// 🔹 Filtrar cuentas por texto
+const cuentasFiltradas = computed(() => {
+  if (!filtro.value.trim()) return cuentas.value
+  const texto = filtro.value.toLowerCase()
+  return cuentas.value.filter(c =>
+    c.codigo.toLowerCase().includes(texto) || c.nombre.toLowerCase().includes(texto)
+  )
+})
+
+// 🔹 Paginación
+const cuentasFiltradasPaginadas = computed(() => {
+  const start = (paginaActual.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return cuentasFiltradas.value.slice(start, end)
+})
+
+// 🔹 Cargar cuentas (como antes)
 const cargarPUC = async () => {
   try {
     const response = await fetch('/PUC.csv')
@@ -101,14 +147,13 @@ const cargarPUC = async () => {
     const text = await response.text()
 
     const lineas = text.trim().split('\n')
-    // Suponiendo que la primera línea es encabezado: codigo,nombre
     const puc = lineas.slice(1).map(linea => {
       const [codigo, nombre] = linea.split(',')
       return {
-        id: `puc-${codigo.trim()}`, // identificador único temporal
+        id: `puc-${codigo.trim()}`,
         codigo: codigo.trim(),
         nombre: nombre.trim(),
-        origen: 'PUC' // ⚡ para distinguirlas
+        origen: 'PUC'
       }
     })
 
@@ -119,18 +164,11 @@ const cargarPUC = async () => {
   }
 }
 
-// 🔹 Cargar cuentas de empresa + PUC
 const cargarCuentas = async () => {
   try {
     const puc = await cargarPUC()
+    const cuentasPUC = puc.map(c => ({ ...c, origen: 'global' }))
 
-    // Las del PUC son Globales
-    const cuentasPUC = puc.map(c => ({
-      ...c,
-      origen: 'global'
-    }))
-
-     // Las del backend son de la Empresa
     const { data } = await api.get(`/empresas/${empresaId}/cuentas-todas`)
     const cuentasBackend = data.map(c => ({
       id: c.id,
@@ -139,13 +177,12 @@ const cargarCuentas = async () => {
       origen: 'empresa'
     }))
 
-    // Combinar y evitar duplicados por código
     const mapa = new Map()
     for (const c of [...cuentasPUC, ...cuentasBackend]) {
       if (!mapa.has(c.codigo)) mapa.set(c.codigo, c)
     }
 
-    cuentas.value = Array.from(mapa.values())
+    cuentas.value = Array.from(mapa.values()).sort((a, b) => a.codigo.localeCompare(b.codigo))
   } catch (error) {
     ElMessage.error('Error al cargar las cuentas')
   }
@@ -171,16 +208,14 @@ const guardarCuenta = async () => {
   })
 }
 
-// 🔹 No permitir editar o eliminar cuentas globales
 const editarCuenta = (cuenta) => {
   if (cuenta.origen === 'global') return
   form.value = { codigo: cuenta.codigo, nombre: cuenta.nombre }
   cuentaEditandoId.value = cuenta.id
   modoEdicion.value = true
 }
-const cancelarEdicion = () => {
-  limpiarFormulario()
-}
+
+const cancelarEdicion = () => limpiarFormulario()
 
 const eliminarCuenta = async (id) => {
   try {
@@ -203,6 +238,26 @@ onMounted(() => {
   cargarCuentas()
 })
 </script>
+
+<style scoped>
+.custom-search-input :deep(.el-input__inner) {
+  border: none;
+  box-shadow: none;
+  font-size: 15px;
+  color: #333;
+  background-color: transparent;
+}
+
+.custom-search-input :deep(.el-input__inner:focus) {
+  outline: none;
+  border: none;
+}
+
+.custom-search-input :deep(.el-input__clear) {
+  color: #409EFF;
+}
+</style>
+
 
 
 

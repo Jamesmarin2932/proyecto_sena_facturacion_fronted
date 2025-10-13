@@ -50,11 +50,11 @@
 
         <!-- Tabla de datos -->
         <el-table :data="paginada" style="width: 100%" border show-summary :summary-method="getSummaries">
-          <el-table-column prop="consecutivo" label="Consecutivo" width="100" />
-          <el-table-column prop="tipo" label="Tipo" width="80" />
-          <el-table-column prop="factura" label="Factura" width="100" />
-          <el-table-column prop="cuenta" label="Cuenta" width="120" />
-          <el-table-column label="Tercero" min-width="200">
+          <el-table-column prop="consecutivo" label="Consecutivo" width="100" sortable />
+          <el-table-column prop="tipo" label="Tipo" width="80" sortable />
+          <el-table-column prop="factura" label="Factura" width="100" sortable />
+          <el-table-column prop="cuenta" label="Cuenta" width="120" sortable />
+          <el-table-column label="Tercero" min-width="200" sortable :sort-by="row => row.tercero ? (row.tercero.razon_social || `${row.tercero.nombres} ${row.tercero.apellidos}`) : ''">
             <template #default="{ row }">
               <div v-if="row.tercero">
                 <strong>{{ row.tercero.razon_social || (row.tercero.nombres + ' ' + row.tercero.apellidos) }}</strong>
@@ -65,13 +65,13 @@
               <span v-else class="text-muted">-- Sin asignar --</span>
             </template>
           </el-table-column>
-          <el-table-column label="Fecha" width="120">
+          <el-table-column label="Fecha" width="120" sortable>
             <template #default="{ row }">{{ formatDate(row.fecha) }}</template>
           </el-table-column>
-          <el-table-column prop="concepto" label="Concepto" />
-          <el-table-column prop="debito" label="Débito" width="100" />
-          <el-table-column prop="credito" label="Crédito" width="100" />
-          <el-table-column prop="saldo_actual" label="Saldo" width="100" />
+          <el-table-column prop="concepto" label="Concepto" sortable />
+          <el-table-column prop="debito" label="Débito" width="100" sortable />
+          <el-table-column prop="credito" label="Crédito" width="100" sortable />
+          <el-table-column prop="saldo_actual" label="Saldo" width="100" sortable />
 
           <!-- Acciones -->
           <el-table-column fixed="right" label="Acciones" width="180">
@@ -89,6 +89,7 @@
                 size="small"
                 icon="el-icon-document"
                 @click="exportarAsientoPDF(row.tipo, row.consecutivo)"
+                :loading="exportandoPDF"
               >
                 Ver PDF
               </el-button>
@@ -143,6 +144,10 @@ const datos = ref([])
 const dialogVisible = ref(false)
 const modoEdicion = ref(false)
 const asientoSeleccionado = ref(null)
+const exportandoPDF = ref(false)
+
+/* 🔹 NUEVAS VARIABLES PARA EMPRESA Y USUARIO */
+const empresaInfo = ref({})
 
 /* 🔹 NUEVAS VARIABLES DE PAGINACIÓN */
 const paginaActual = ref(1)
@@ -152,13 +157,74 @@ const registrosPorPagina = ref(10)
 const cargarAsientos = async () => {
   try {
     const response = await api.get('/asientos')
-    datos.value = response.data.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    // 🔹 ORDENAR POR FECHA MÁS RECIENTE PRIMERO Y LUEGO POR CONSECUTIVO MÁS ALTO
+    datos.value = response.data.sort((a, b) => {
+      // Primero por fecha (más reciente primero)
+      const fechaCompare = new Date(b.fecha) - new Date(a.fecha)
+      if (fechaCompare !== 0) return fechaCompare
+      
+      // Si misma fecha, por consecutivo más alto primero
+      return b.consecutivo - a.consecutivo
+    })
+    console.log('✅ Asientos cargados ordenados por fecha reciente y consecutivo alto')
   } catch (error) {
     console.error('Error al cargar los asientos:', error)
     ElMessage.error('Error al cargar asientos')
   }
 }
-onMounted(cargarAsientos)
+
+// 🔹 NUEVA FUNCIÓN PARA CARGAR INFORMACIÓN DE LA EMPRESA
+const cargarEmpresaInfo = async () => {
+  try {
+    const empresaId = localStorage.getItem('empresa_id')
+    if (empresaId) {
+      const { data } = await api.get(`/empresas/${empresaId}`)
+      empresaInfo.value = data
+      console.log('✅ Información de empresa cargada:', data)
+    } else {
+      console.warn('No se encontró empresa_id en localStorage')
+      // Intentar cargar desde el string 'empresas' en localStorage
+      const empresasStorage = localStorage.getItem('empresas')
+      if (empresasStorage) {
+        try {
+          const empresas = JSON.parse(empresasStorage)
+          if (empresas.length > 0) {
+            empresaInfo.value = empresas[0]
+            console.log('✅ Empresa cargada desde localStorage empresas:', empresas[0])
+          }
+        } catch (e) {
+          console.error('Error al parsear empresas desde localStorage:', e)
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error al cargar información de la empresa:', error)
+    // Si hay error, usar valores por defecto del localStorage
+    const empresasStorage = localStorage.getItem('empresas')
+    if (empresasStorage) {
+      try {
+        const empresas = JSON.parse(empresasStorage)
+        if (empresas.length > 0) {
+          empresaInfo.value = empresas[0]
+        }
+      } catch (e) {
+        console.error('Error al parsear empresas desde localStorage:', e)
+      }
+    }
+  }
+}
+
+// 🔹 FUNCIÓN PARA CARGAR TODOS LOS DATOS NECESARIOS
+const cargarDatosIniciales = async () => {
+  await Promise.all([
+    cargarAsientos(),
+    cargarEmpresaInfo()
+  ])
+}
+
+onMounted(() => {
+  cargarDatosIniciales()
+})
 
 /* ========= FILTROS ========= */
 const limpiarFiltros = () => {
@@ -203,18 +269,16 @@ const filtrada = computed(() => {
     return cumpleTercero && cumpleCuenta && cumpleTipo && cumpleConsec && fDesdeOk && fHastaOk
   })
 
-  // saldo acumulado
+  // 🔹 MANTENER EL ORDEN ORIGINAL (MÁS RECIENTES PRIMERO) PARA EL SALDO ACUMULADO
   let saldos = {}
-  return resultado
-    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-    .map(asiento => {
-      const c = asiento.cuenta
-      const d = parseFloat(asiento.debito || 0)
-      const cr = parseFloat(asiento.credito || 0)
-      if (!saldos[c]) saldos[c] = 0
-      saldos[c] += d - cr
-      return { ...asiento, saldo_actual: saldos[c].toFixed(2) }
-    })
+  return resultado.map(asiento => {
+    const c = asiento.cuenta
+    const d = parseFloat(asiento.debito || 0)
+    const cr = parseFloat(asiento.credito || 0)
+    if (!saldos[c]) saldos[c] = 0
+    saldos[c] += d - cr
+    return { ...asiento, saldo_actual: saldos[c].toFixed(2) }
+  })
 })
 
 /* 🔹 PAGINACIÓN: mostrar solo los registros de la página actual */
@@ -293,37 +357,67 @@ const exportarExcel = () => {
 
 /* ========= EXPORTAR UN ASIENTO DETALLADO ========= */
 const exportarAsientoPDF = async (tipo, consecutivo) => {
+  exportandoPDF.value = true
   try {
     const empresaId = localStorage.getItem('empresa_id')
-    if (!empresaId) return ElMessage.error('Seleccione una empresa primero')
+    if (!empresaId) {
+      ElMessage.error('Seleccione una empresa primero')
+      return
+    }
+
+    // 🔹 Asegurarnos de que la información de empresa esté cargada
+    if (!empresaInfo.value.nombre_razon_social && !empresaInfo.value.nombre_comercial) {
+      await cargarEmpresaInfo()
+    }
 
     const { data } = await api.get(`/asientos/${tipo}/${consecutivo}`, {
       headers: { empresa_id: empresaId }
     })
 
     if (!Array.isArray(data) || data.length === 0) {
-      return ElMessage.error('No se encontraron registros para este asiento')
+      ElMessage.error('No se encontraron registros para este asiento')
+      return
     }
 
     const primer = data[0]
     const doc = new jsPDF({ unit: 'pt', format: 'a4' })
 
+    // 🔹 OBTENER NOMBRES PARA EL PDF
+    const nombreEmpresa = empresaInfo.value.nombre_razon_social || 
+                         empresaInfo.value.nombre_comercial || 
+                         'EMPRESA'
+    
+    // 🔹 USAR EL USUARIO CREADOR GUARDADO EN LA BASE DE DATOS
+    const nombreUsuario = primer.usuario_creador || 
+                         'Usuario'
+
+    console.log('📄 Generando PDF con:', { 
+      nombreEmpresa, 
+      nombreUsuario,
+      usuario_creador: primer.usuario_creador,
+      empresaInfo: empresaInfo.value
+    })
+
+    // 🔹 AGREGAR NOMBRE DE LA EMPRESA EN EL ENCABEZADO
     doc.setFontSize(16)
-    doc.text('COMPROBANTE DE ASIENTO CONTABLE', 300, 40, { align: 'center' })
+    doc.text(nombreEmpresa, 300, 30, { align: 'center' })
+    
+    doc.setFontSize(14)
+    doc.text('COMPROBANTE DE ASIENTO CONTABLE', 300, 50, { align: 'center' })
 
     doc.setFontSize(10)
-    doc.text(`No. Comprobante: ${primer.consecutivo}`, 40, 70)
-    doc.text(`Tipo: ${primer.tipo}`, 200, 70)
-    doc.text(`Fecha: ${formatDate(primer.fecha)}`, 350, 70)
+    doc.text(`No. Comprobante: ${primer.consecutivo}`, 40, 80)
+    doc.text(`Tipo: ${primer.tipo}`, 200, 80)
+    doc.text(`Fecha: ${formatDate(primer.fecha)}`, 350, 80)
 
     if (primer.tercero) {
       const t = primer.tercero
       const nombreTercero = t.razon_social || `${t.nombres} ${t.apellidos}`
-      doc.text(`Tercero: ${nombreTercero}`, 40, 90)
-      doc.text(`Identificación: ${t.numero_identificacion || ''}`, 40, 105)
+      doc.text(`Tercero: ${nombreTercero}`, 40, 100)
+      doc.text(`Identificación: ${t.numero_identificacion || ''}`, 40, 115)
     }
 
-    doc.text(`Concepto: ${primer.concepto || ''}`, 40, 125)
+    doc.text(`Concepto: ${primer.concepto || ''}`, 40, 135)
 
     const body = data.map(d => [
       d.cuenta,
@@ -334,7 +428,7 @@ const exportarAsientoPDF = async (tipo, consecutivo) => {
     ])
 
     autoTable(doc, {
-      startY: 150,
+      startY: 160,
       head: [['Cuenta', 'Tercero', 'Detalle', 'Débito', 'Crédito']],
       body,
       foot: [[
@@ -345,14 +439,20 @@ const exportarAsientoPDF = async (tipo, consecutivo) => {
     })
 
     const finalY = doc.lastAutoTable.finalY + 40
-    doc.text('Preparado por: _______________________', 40, finalY)
+    
+    // 🔹 AGREGAR "PREPARADO POR" CON EL USUARIO QUE CREÓ EL ASIENTO
+    doc.text(`Preparado por: ${nombreUsuario}`, 40, finalY)
     doc.text('Revisado por: _______________________', 300, finalY)
     doc.text('Aprobado por: _______________________', 40, finalY + 30)
 
     doc.save(`Asiento-${primer.tipo}-${primer.consecutivo}.pdf`)
+    
+    ElMessage.success('PDF generado correctamente')
   } catch (e) {
-    console.error(e)
+    console.error('Error al generar PDF:', e)
     ElMessage.error('No se pudo generar el PDF detallado')
+  } finally {
+    exportandoPDF.value = false
   }
 }
 </script>

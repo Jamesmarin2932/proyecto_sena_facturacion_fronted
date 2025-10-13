@@ -49,15 +49,16 @@
     <el-divider />
 
     <!-- Tabla editable -->
-    <el-table :data="form.detalles" border style="width: 100%;">
+    <el-table :data="form.detalles" border style="width: 100%;" ref="tablaRef">
       <el-table-column label="Cuenta">
-        <template #default="{ row }">
+        <template #default="{ row, $index }">
           <el-autocomplete
             v-model="row.cuenta"
             :fetch-suggestions="fetchSuggestions"
             placeholder="Código o nombre de cuenta"
             clearable
             @select="item => handleSelectCuenta(row)(item)"
+            :ref="el => setCuentaInputRef(el, $index)"
           />
         </template>
       </el-table-column>
@@ -165,15 +166,14 @@
       </el-col>
 
       <el-col :span="3" v-if="props.modoEdicion">
-  <el-button
-    type="danger"
-    :loading="guardando"
-    @click="eliminarAsiento"
-  >
-    Eliminar
-  </el-button>
-</el-col>
-
+        <el-button
+          type="danger"
+          :loading="guardando"
+          @click="eliminarAsiento"
+        >
+          Eliminar
+        </el-button>
+      </el-col>
     </el-row>
   </div>
 </template>
@@ -184,7 +184,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading, Delete } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import api from '@/api'
-
 
 const props = defineProps({
   asiento: { type: Object, default: null },
@@ -206,9 +205,19 @@ const modoManual          = ref(false)
 const cuentasContables    = ref([])
 const guardando           = ref(false)
 const cargandoConsecutivo = ref(false)
-const agregarFilaBtn      = ref(null) // Referencia al botón de agregar fila
+const agregarFilaBtn      = ref(null)
+const tablaRef            = ref(null)
+const cuentaInputRefs     = ref([])
 
 /* ======= FUNCIONES ======= */
+
+// 🔹 FUNCIÓN MEJORADA: Manejar referencias de inputs de cuenta
+function setCuentaInputRef(el, index) {
+  if (el) {
+    cuentaInputRefs.value[index] = el
+  }
+}
+
 function obtenerNombreCuenta(codigo) {
   const cta = cuentasContables.value.find(c => c.codigo === codigo)
   return cta ? cta.nombre : 'Cuenta no encontrada'
@@ -238,9 +247,6 @@ async function cargarCuentasContables() {
     ElMessage.error('Error al cargar las cuentas contables')
   }
 }
-
-
-
 
 async function cargarConsecutivoPorTipo(tipo) {
   if (!tipo) return
@@ -294,15 +300,66 @@ async function cargarDatosAsiento(asientoData) {
   }
 }
 
+// 🔹 FUNCIÓN COMPLETAMENTE REESCRITA: Agregar fila con foco en cuenta
 function agregarFila() {
-  form.detalles.push({ cuenta: '', nombreCuenta: '', tercero_id: null, tercero_nombre: '', concepto: '', debito: 0, credito: 0, saldo: 0 })
+  const nuevaFilaIndex = form.detalles.length
+  form.detalles.push({ 
+    cuenta: '', 
+    nombreCuenta: '', 
+    tercero_id: null, 
+    tercero_nombre: '', 
+    concepto: '', 
+    debito: 0, 
+    credito: 0, 
+    saldo: 0 
+  })
   
-  // Enfocar el primer campo de la nueva fila
+  // 🔹 ESTRATEGIA MEJORADA: Esperar a que el DOM se actualice y enfocar
   nextTick(() => {
-    const inputs = document.querySelectorAll('.el-table .el-input__inner')
-    if (inputs.length > 0) {
-      inputs[inputs.length - 8].focus() // Enfocar el primer campo de la nueva fila
+    // Intentar varias estrategias en orden
+    
+    // Estrategia 1: Usar referencias directas
+    if (cuentaInputRefs.value[nuevaFilaIndex]) {
+      const inputElement = cuentaInputRefs.value[nuevaFilaIndex].$el?.querySelector('input')
+      if (inputElement) {
+        inputElement.focus()
+        console.log('✅ Foco puesto usando referencia directa')
+        return
+      }
     }
+    
+    // Estrategia 2: Buscar por selector específico
+    setTimeout(() => {
+      const inputsCuenta = document.querySelectorAll('.el-table .el-autocomplete input')
+      if (inputsCuenta.length > nuevaFilaIndex) {
+        inputsCuenta[nuevaFilaIndex].focus()
+        console.log('✅ Foco puesto usando selector específico')
+        return
+      }
+      
+      // Estrategia 3: Buscar por posición en la tabla
+      const todasLasCeldas = document.querySelectorAll('.el-table .el-table__body .el-table__cell')
+      const celdasPorFila = 7 // número de columnas
+      const primeraCeldaNuevaFila = (nuevaFilaIndex * celdasPorFila)
+      
+      if (todasLasCeldas[primeraCeldaNuevaFila]) {
+        const input = todasLasCeldas[primeraCeldaNuevaFila].querySelector('input')
+        if (input) {
+          input.focus()
+          console.log('✅ Foco puesto usando cálculo de posición')
+          return
+        }
+      }
+      
+      // Estrategia 4: Último recurso - buscar el último input de cuenta
+      const ultimoInputCuenta = document.querySelector('.el-table .el-autocomplete:last-child input')
+      if (ultimoInputCuenta) {
+        ultimoInputCuenta.focus()
+        console.log('✅ Foco puesto usando último input')
+      } else {
+        console.warn('❌ No se pudo encontrar el input para enfocar')
+      }
+    }, 50) // Pequeño delay para asegurar que el DOM se haya actualizado
   })
 }
 
@@ -311,7 +368,12 @@ function agregarFilaConTab() {
 }
 
 function eliminarFila(i) {
-  if (form.detalles.length > 1) form.detalles.splice(i, 1)
+  if (form.detalles.length > 1) {
+    form.detalles.splice(i, 1)
+    nextTick(() => {
+      cuentaInputRefs.value.splice(i, 1)
+    })
+  }
 }
 
 async function buscarTerceros(query, cb) {
@@ -351,6 +413,7 @@ function fetchSuggestions(query, cb) {
     }))
   cb(res)
 }
+
 function handleSelectCuenta(row) {
   return item => {
     row.cuenta       = item.codigo
@@ -365,6 +428,23 @@ async function guardarAsiento() {
   guardando.value = true
   try {
     const empresaId = localStorage.getItem('empresa_id')
+    
+    // 🔹 OBTENER USUARIO ACTUAL EN EL MOMENTO DE CREACIÓN
+    const userStorage = localStorage.getItem('user')
+    const usernameStorage = localStorage.getItem('username')
+    let usuarioCreador = 'Usuario'
+    
+    if (userStorage) {
+      try {
+        const userData = JSON.parse(userStorage)
+        usuarioCreador = userData.nombre_usuario || usernameStorage || 'Usuario'
+      } catch {
+        usuarioCreador = usernameStorage || 'Usuario'
+      }
+    } else if (usernameStorage) {
+      usuarioCreador = usernameStorage
+    }
+
     const payloads = form.detalles.map(d => ({
       id: d.id,
       consecutivo: form.consecutivo,
@@ -376,8 +456,11 @@ async function guardarAsiento() {
       concepto: d.concepto,
       debito: d.debito,
       credito: d.credito,
-      saldo: d.debito - d.credito
+      saldo: d.debito - d.credito,
+      // 🔹 GUARDAR EL USUARIO CREADOR
+      usuario_creador: usuarioCreador
     }))
+    
     if (props.modoEdicion) {
       await api.put(`/asientos/consecutivo/${form.consecutivo}`, { asientos: payloads }, { headers: { empresa_id: empresaId } })
     } else {
@@ -400,9 +483,9 @@ function cancelar() {
     detalles: [{ cuenta: '', nombreCuenta: '', tercero_id: null, tercero_nombre: '', concepto: '', debito: 0, credito: 0, saldo: 0 }]
   })
   modoManual.value = false
+  cuentaInputRefs.value = []
   emit('cancelar')
 }
-
 
 async function eliminarAsiento() {
   try {
@@ -420,8 +503,8 @@ async function eliminarAsiento() {
     })
 
     ElMessage.success('Asiento eliminado correctamente')
-    emit('asientoGuardado') // refresca lista en padre
-    cancelar() // cierra modal
+    emit('asientoGuardado')
+    cancelar()
   } catch (err) {
     if (err !== 'cancel') {
       console.error(err)
@@ -431,8 +514,6 @@ async function eliminarAsiento() {
     guardando.value = false
   }
 }
-
-
 
 function toggleModoManual() {
   modoManual.value = !modoManual.value
