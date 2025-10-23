@@ -25,8 +25,7 @@
       <template #title>
         <span>{{ username.toUpperCase() }}</span>
       </template>
-      <el-menu-item index="2-1">Perfil</el-menu-item>
-      <el-menu-item index="2-2" @click="logout">Cerrar sesión</el-menu-item>
+      <el-menu-item index="2-1" @click="logout">Cerrar sesión</el-menu-item>
     </el-sub-menu>
   </el-menu>
 </template>
@@ -129,4 +128,31 @@ export default {
   background-color: #0f1c33;
   color: #00d1b2;
 }
+
+
+.el-menu-demo {
+  height: 70px; /* 🔹 Aumenta la altura (por defecto son ~50px) */
+  line-height: 70px;
+  padding: 0 20px; /* 🔹 Un poco más de margen lateral */
+}
+
+/* Ajusta la altura de los ítems del menú */
+.el-menu-demo ::v-deep(.el-menu-item),
+.el-menu-demo ::v-deep(.el-sub-menu__title) {
+  height: 70px;
+  line-height: 70px;
+}
+
+/* Ajusta el logo para que se vea proporcionado */
+.logo-img {
+  width: 60px; /* 🔹 un poco más grande */
+  height: auto;
+  border-radius: 6px;
+}
+
+/* Ajusta el texto del nombre de la empresa */
+.empresa-texto {
+  font-size: 20px;
+}
+
 </style>
