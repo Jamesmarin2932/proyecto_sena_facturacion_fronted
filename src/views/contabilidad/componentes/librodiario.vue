@@ -333,21 +333,35 @@ const getSummaries = ({ columns, data }) => {
   })
   return sums
 }
-const formatDate = f => f ? new Date(f).toLocaleDateString() : ''
+/* =========================
+   FORMATEO DE FECHAS
+========================= */
+const formatDate = f => {
+  if (!f) return ''
 
-/* ========= EXPORTAR TODO ========= */
+  // Si f es string tipo "YYYY-MM-DDTHH:MM:SS", solo extraemos la parte de fecha
+  const fechaStr = typeof f === 'string' ? f.split('T')[0] : f.toISOString().split('T')[0]
+
+  const [year, month, day] = fechaStr.split('-')
+  return `${day}/${month}/${year}`
+}
+
+/* =========================
+   EXPORTAR EXCEL
+========================= */
 const exportarExcel = () => {
   const datosExport = filtrada.value.map(a => ({
     Consecutivo: a.consecutivo,
     Tipo: a.tipo,
     Cuenta: a.cuenta,
     Tercero: a.tercero ? (a.tercero.razon_social || `${a.tercero.nombres} ${a.tercero.apellidos}`) : '',
-    Fecha: formatDate(a.fecha),
+    Fecha: formatDate(a.fecha),  // 🔹 Fecha corregida
     Concepto: a.concepto,
     Débito: a.debito,
     Crédito: a.credito,
     Saldo: a.saldo_actual
   }))
+
   const ws = XLSX.utils.json_to_sheet(datosExport)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'LibroDiario')
@@ -355,17 +369,15 @@ const exportarExcel = () => {
   saveAs(new Blob([buf], { type: 'application/octet-stream' }), 'libro_diario.xlsx')
 }
 
-/* ========= EXPORTAR UN ASIENTO DETALLADO ========= */
+/* =========================
+   EXPORTAR PDF ASIENTO
+========================= */
 const exportarAsientoPDF = async (tipo, consecutivo) => {
   exportandoPDF.value = true
   try {
     const empresaId = localStorage.getItem('empresa_id')
-    if (!empresaId) {
-      ElMessage.error('Seleccione una empresa primero')
-      return
-    }
+    if (!empresaId) return ElMessage.error('Seleccione una empresa primero')
 
-    // 🔹 Asegurarnos de que la información de empresa esté cargada
     if (!empresaInfo.value.nombre_razon_social && !empresaInfo.value.nombre_comercial) {
       await cargarEmpresaInfo()
     }
@@ -382,45 +394,38 @@ const exportarAsientoPDF = async (tipo, consecutivo) => {
     const primer = data[0]
     const doc = new jsPDF({ unit: 'pt', format: 'a4' })
 
-    // 🔹 OBTENER NOMBRES PARA EL PDF
-    const nombreEmpresa = empresaInfo.value.nombre_razon_social || 
-                         empresaInfo.value.nombre_comercial || 
-                         'EMPRESA'
-    
-    // 🔹 USAR EL USUARIO CREADOR GUARDADO EN LA BASE DE DATOS
-    const nombreUsuario = primer.usuario_creador || 
-                         'Usuario'
+    const nombreEmpresa = empresaInfo.value.nombre_razon_social || empresaInfo.value.nombre_comercial || 'EMPRESA'
+    const nombreUsuario = primer.usuario_creador || 'Usuario'
+    const nombreCuenta = primer.cuenta_info?.nombre || ''
 
-    console.log('📄 Generando PDF con:', { 
-      nombreEmpresa, 
-      nombreUsuario,
-      usuario_creador: primer.usuario_creador,
-      empresaInfo: empresaInfo.value
-    })
+    // Formateamos la fecha correctamente
+    const fechaFormateada = formatDate(primer.fecha)
 
-    // 🔹 AGREGAR NOMBRE DE LA EMPRESA EN EL ENCABEZADO
+    // ENCABEZADO
     doc.setFontSize(16)
     doc.text(nombreEmpresa, 300, 30, { align: 'center' })
-    
+
     doc.setFontSize(14)
     doc.text('COMPROBANTE DE ASIENTO CONTABLE', 300, 50, { align: 'center' })
 
     doc.setFontSize(10)
     doc.text(`No. Comprobante: ${primer.consecutivo}`, 40, 80)
     doc.text(`Tipo: ${primer.tipo}`, 200, 80)
-    doc.text(`Fecha: ${formatDate(primer.fecha)}`, 350, 80)
+    doc.text(`Fecha: ${fechaFormateada}`, 350, 80) // 🔹 Fecha corregida
 
     if (primer.tercero) {
       const t = primer.tercero
       const nombreTercero = t.razon_social || `${t.nombres} ${t.apellidos}`
       doc.text(`Tercero: ${nombreTercero}`, 40, 100)
-      doc.text(`Identificación: ${t.numero_identificacion || ''}`, 40, 115)
+      doc.text(`Identificación: ${t.identificacion || ''}`, 40, 115)
     }
 
     doc.text(`Concepto: ${primer.concepto || ''}`, 40, 135)
+    doc.text(`Cuenta: ${primer.cuenta} - ${nombreCuenta}`, 40, 150)
 
+    // Tabla de cuentas
     const body = data.map(d => [
-      d.cuenta,
+      `${d.cuenta} - ${d.cuenta_info?.nombre || ''}`,
       d.tercero ? (d.tercero.razon_social || `${d.tercero.nombres} ${d.tercero.apellidos}`) : '',
       d.concepto || '',
       parseFloat(d.debito).toLocaleString(),
@@ -428,8 +433,8 @@ const exportarAsientoPDF = async (tipo, consecutivo) => {
     ])
 
     autoTable(doc, {
-      startY: 160,
-      head: [['Cuenta', 'Tercero', 'Detalle', 'Débito', 'Crédito']],
+      startY: 170,
+      head: [['Cuenta / Nombre', 'Tercero', 'Detalle', 'Débito', 'Crédito']],
       body,
       foot: [[
         '', '', 'TOTALES',
@@ -439,14 +444,11 @@ const exportarAsientoPDF = async (tipo, consecutivo) => {
     })
 
     const finalY = doc.lastAutoTable.finalY + 40
-    
-    // 🔹 AGREGAR "PREPARADO POR" CON EL USUARIO QUE CREÓ EL ASIENTO
     doc.text(`Preparado por: ${nombreUsuario}`, 40, finalY)
     doc.text('Revisado por: _______________________', 300, finalY)
     doc.text('Aprobado por: _______________________', 40, finalY + 30)
 
     doc.save(`Asiento-${primer.tipo}-${primer.consecutivo}.pdf`)
-    
     ElMessage.success('PDF generado correctamente')
   } catch (e) {
     console.error('Error al generar PDF:', e)
@@ -455,6 +457,8 @@ const exportarAsientoPDF = async (tipo, consecutivo) => {
     exportandoPDF.value = false
   }
 }
+
+
 </script>
 
 <style scoped>

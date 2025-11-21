@@ -418,8 +418,10 @@ function handleSelectCuenta(row) {
   return item => {
     row.cuenta       = item.codigo
     row.nombreCuenta = item.nombreCuenta
+    row.cuenta_id    = item.id  // <-- enviar id de la cuenta global si existe
   }
 }
+
 
 async function guardarAsiento() {
   if (!form.tipo || !form.consecutivo) return ElMessage.error('Tipo y consecutivo son requeridos')
@@ -445,21 +447,27 @@ async function guardarAsiento() {
       usuarioCreador = usernameStorage
     }
 
-    const payloads = form.detalles.map(d => ({
-      id: d.id,
-      consecutivo: form.consecutivo,
-      tipo: form.tipo,
-      fecha: dayjs(form.fecha).format('YYYY-MM-DD'),
-      factura: form.factura,
-      cuenta: d.cuenta,
-      tercero_id: d.tercero_id,
-      concepto: d.concepto,
-      debito: d.debito,
-      credito: d.credito,
-      saldo: d.debito - d.credito,
-      // 🔹 GUARDAR EL USUARIO CREADOR
-      usuario_creador: usuarioCreador
-    }))
+    const payloads = form.detalles.map(d => {
+  return {
+    id: d.id,
+    consecutivo: form.consecutivo,
+    tipo: form.tipo,
+    fecha: dayjs(form.fecha).format('YYYY-MM-DD'),
+    factura: form.factura,
+    cuenta: d.cuenta,
+    cuenta_id: d.cuenta_id,      // <-- enviar id al backend
+    nombre_cuenta: d.nombreCuenta,
+    tercero_id: d.tercero_id,
+    concepto: d.concepto,
+    debito: d.debito,
+    credito: d.credito,
+    saldo: d.debito - d.credito,
+    usuario_creador: usuarioCreador
+  }
+})
+
+
+  
     
     if (props.modoEdicion) {
       await api.put(`/asientos/consecutivo/${form.consecutivo}`, { asientos: payloads }, { headers: { empresa_id: empresaId } })
