@@ -421,7 +421,7 @@ const exportarAsientoPDF = async (tipo, consecutivo) => {
     }
 
     doc.text(`Concepto: ${primer.concepto || ''}`, 40, 135)
-    doc.text(`Cuenta: ${primer.cuenta} - ${nombreCuenta}`, 40, 150)
+    
 
     // Tabla de cuentas
     const body = data.map(d => [
